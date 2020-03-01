@@ -8,7 +8,7 @@ import * as assert from 'assert';
 import * as EE from 'events';
 import * as strm from "stream";
 
-console.log('dog');
+console.log('deoop');
 
 const s = http.createServer((req,res) => {
     res.end('hi');
@@ -16,7 +16,17 @@ const s = http.createServer((req,res) => {
 
 console.log('bop');
 
-const port = 3000;
+process.once('SIGINT', signal => {
+  console.log('GOT SIGNAL')
+   setTimeout(() => {
+     process.exit(1);
+   }, 500);
+   s.close(() => {
+     process.exit(1)
+   })
+});
+
+const port = 3099;
 
 s.listen(port, () => {
   console.log('Listening on port:', port)

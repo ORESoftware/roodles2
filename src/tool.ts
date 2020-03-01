@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 //core
-import cp = require('child_process');
+import * as cp from 'child_process'
 import fs = require('fs');
 import path = require('path');
 import util = require('util');
@@ -19,6 +19,8 @@ import {options} from "./cli-options";
 import log from "./logging";
 import Timer = NodeJS.Timer;
 import {Stream, Writable} from "stream";
+import {ChildProcess} from "child_process";
+import {killProcs} from "./utils";
 
 const flattenDeep = (a: Array<any>): Array<any> => {
   return a.reduce((acc, val) => Array.isArray(val) ? acc.concat(flattenDeep(val)) : acc.concat(val), []);
@@ -49,7 +51,7 @@ export default () => {
     process.exit(1);
   }
 
-  const projectRoot = residence.findProjectRoot(cwd);
+  const projectRoot = residence.findRootDir(cwd, 'roodles.conf.js');
 
   if (!projectRoot) {
     log.warn('Could not find project root given cwd => ', cwd);
@@ -178,7 +180,8 @@ export default () => {
   const cache = {
     strm: typeof fs.WriteStream,
     success: false,
-    to: <Timer><unknown>null
+    to: <Timer><unknown>null,
+    k: null as any
   };
 
   const getStdout = (): any => {
@@ -262,16 +265,20 @@ export default () => {
     });
   }
 
-  const include = flattenDeep([mergedroodlesConf.include]);
+  const include = Array.from(
+    new Set(
+      flattenDeep([mergedroodlesConf.include])
+    )
+  );
 
-  if(include.length < 1){
+  if (include.length < 1) {
     log.error('No folders/files to watch.');
     log.error('Please specify which folders to watch in the "include" array in your roodles.conf.js file.');
     process.exit(1);
   }
 
-  for(const v of include){
-    try{
+  for (const v of include) {
+    try {
       fs.statSync(getAbsPath(v))
     }
     catch (e) {
@@ -280,40 +287,40 @@ export default () => {
     }
   }
 
-  const watcher = chokidar.watch(include, {
-    ignored: rgx,
-    persistent: true,
-    ignoreInitial: true,
-  });
+  // const watcher = chokidar.watch(include, {
+  //   ignored: rgx,
+  //   persistent: true,
+  //   ignoreInitial: true,
+  // });
 
   let first = true;
 
-  watcher.once('ready', function () {
+  const onReady = () => {
 
     log.warn('Watcher is ready!');
 
     let count = 0;
 
     if (mergedroodlesConf.verbosity > 2) {
-      log.info('\n', chalk.magenta('  watched paths => '));
+      log.info(chalk.magenta('watched paths => '));
     }
 
-    const watched = watcher.getWatched();
-
-    console.log('watched:', watched);
-
-    Object.keys(watched).forEach(function (k) {
-      const values = watched[k];
-      values.forEach(function (p) {
-        count++;
-        if (mergedroodlesConf.verbosity > 2) {
-          log.info(chalk.grey(path.resolve(k + '/' + p)));
-        }
-      })
-    });
+    // const watched = watcher.getWatched();
+    //
+    // console.log('watched:', watched);
+    //
+    // Object.keys(watched).forEach(function (k) {
+    //   const values = watched[k];
+    //   values.forEach(function (p) {
+    //     count++;
+    //     if (mergedroodlesConf.verbosity > 2) {
+    //       log.info(chalk.grey(path.resolve(k + '/' + p)));
+    //     }
+    //   })
+    // });
 
     if (mergedroodlesConf.verbosity > 1) {
-      log.info('\n', '  Total number of watched paths => ', count, '\n');
+      log.info('Total number of watched paths => ', count, '\n');
     }
 
     function launch() {
@@ -329,7 +336,7 @@ export default () => {
         }
       }
       else {
-        log.warn(chalk.black.bold('Roodles is re-starting your process...'));
+        log.warn('Roodles is re-starting your process...');
       }
 
       cache.strm = getStream(false) as any;
@@ -375,14 +382,13 @@ export default () => {
           console.error('\n');
           console.error(chalk.bgRed.white(' => captured stderr from your process => '));
           console.error(chalk.red.bold(joined));
-          log.info('\n');
         }
       });
 
       return n;
     }
 
-    let k = launch();
+    cache.k = launch();
 
     // let globalTo = <Timer><unknown>null;
 
@@ -390,16 +396,21 @@ export default () => {
 
       clearTimeout(cache.to);
       cache.to = setTimeout(() => {
-        const to = setTimeout(onClose, 500);
-        k.once('exit', onClose);
+        let exited = false;
+        const to = setTimeout(onExitOrTimeout, 2500);
+        cache.k.once('exit', (code: any) => {
+          exited = true;
+          onExitOrTimeout();
+        });
 
-        function onClose() {
+        function onExitOrTimeout() {
           clearTimeout(to);
-          k.removeAllListeners();
-          k.unref();
-          k = launch();
+          console.log('exitted...');
+          cache.k.removeAllListeners();
+          cache.k.unref();
+          cache.k = launch();
           if (mergedroodlesConf.verbosity > 1) {
-            log.info('Process restarted, new process pid => ', k.pid);
+            log.info('Process restarted, new process pid => ', cache.k.pid);
           }
         }
 
@@ -407,45 +418,81 @@ export default () => {
           log.warn('Killing your process with the "' + mergedroodlesConf.signal + '" signal.');
         }
 
-        (k as any).isRoodlesKilled = true;
-        k.kill(mergedroodlesConf.signal);
+        (cache.k as any).isRoodlesKilled = true;
+        // process.kill(cache.k.pid, 'SIGINT');
+        // cache.k.kill(mergedroodlesConf.signal);
+
+        killProcs(cache.k.pid, 'KILL', (err, results) => {
+          log.info({err, results});
+        });
+
+        const c = cache.k;
+        // process.kill(c.pid, 'SIGKILL');
+        setTimeout(() => {
+          if (!exited) {
+            killProcs(c.pid, 'KILL', (err, results) => {
+              log.info({err, results});
+            });
+          }
+        }, 2000);
 
       }, timeout);
-
     }
 
     process.stdin.resume()
       .setEncoding('utf8')
       .on('data', d => {
         if (String(d || '').trim() === 'rs') {
-          if (mergedroodlesConf.verbosity > 1) {
+          if (mergedroodlesConf.verbosity > 0) {
             log.info(' => "rs" captured...');
           }
           killAndRestart(0);
         }
       });
 
-    if (true || mergedroodlesConf.restartUponChange) {
-      watcher.on('change', path => {
-        log.info('watched file changed => ', path);
-        killAndRestart(500);
+    // const f = path.resolve(__dirname + '/test/dist/first.js');
+
+    for(const i of include){
+      const w = fs.watch(i, (event: string, filename: string) => {
+        console.log('hello:');
+        // log.info('watched file changed => ', path);
+        killAndRestart(200);
       });
     }
 
-    if (true || mergedroodlesConf.restartUponAddition) {
-      watcher.on('add', path => {
-        log.info('file within watched path was added => ', path);
-        killAndRestart(500);
-      });
-    }
+    // const w = fs.watchFile(f, {interval: 40}, (prev, curr) => {
+    //   console.log('hello:');
+    //   // log.info('watched file changed => ', path);
+    //   killAndRestart(500);
+    // });
 
-    if (true || mergedroodlesConf.restartUponUnlink) {
-      watcher.on('unlink', path => {
-        log.info('file within watched path was unlinked => ', path);
-        killAndRestart(500);
-      });
-    }
+  };
 
-  });
+  onReady();
+
+  // w.on('change', p => {
+  //   console.log('change to:', p);
+  // });
+
+  // if (true || mergedroodlesConf.restartUponChange) {
+  //   watcher.on('change', path => {
+  //     log.info('watched file changed => ', path);
+  //     killAndRestart(500);
+  //   });
+  // }
+  //
+  // if (true || mergedroodlesConf.restartUponAddition) {
+  //   watcher.on('add', path => {
+  //     log.info('file within watched path was added => ', path);
+  //     killAndRestart(500);
+  //   });
+  // }
+  //
+  // if (true || mergedroodlesConf.restartUponUnlink) {
+  //   watcher.on('unlink', path => {
+  //     log.info('file within watched path was unlinked => ', path);
+  //     killAndRestart(500);
+  //   });
+  // }
 
 }
