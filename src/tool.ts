@@ -6,6 +6,7 @@ import fs = require('fs');
 import path = require('path');
 import util = require('util');
 import assert = require('assert');
+import * as stdio from 'json-stdio';
 
 //npm
 import chokidar = require('chokidar');
@@ -21,6 +22,8 @@ import Timer = NodeJS.Timer;
 import {Stream, Writable} from "stream";
 import {ChildProcess} from "child_process";
 import {killProcs} from "./utils";
+import JSONParser from "@oresoftware/json-stream-parser";
+import * as net from 'net';
 
 const flattenDeep = (a: Array<any>): Array<any> => {
   return a.reduce((acc, val) => Array.isArray(val) ? acc.concat(flattenDeep(val)) : acc.concat(val), []);
@@ -29,6 +32,43 @@ const flattenDeep = (a: Array<any>): Array<any> => {
 export default () => {
 
   const cwd = process.cwd();
+  const sock = '/tmp/cp.api.sock';
+  const metaSock = '/tmp/cp.api.meta.sock';
+  try{
+    fs.unlinkSync(sock)
+  }
+  catch(err){
+    // console.warn(err);
+  }
+
+  try{
+    fs.unlinkSync(metaSock)
+  }
+  catch(err){
+    // console.warn(err);
+  }
+
+  const connections = new Set<net.Socket>();
+
+  const server = net.createServer(s => {
+      connections.add(s);
+  });
+
+  server.listen(sock, () => {
+    log.info('uds server listening on:', sock)
+  });
+
+
+  const metaConnections = new Set<net.Socket>();
+
+  const metaServer = net.createServer(s => {
+    metaConnections.add(s);
+  });
+
+  metaServer.listen(metaSock, () => {
+    log.info('uds meta server listening on:', sock)
+  });
+
 
   var parser = dashdash.createParser({options: options});
   try {
@@ -181,7 +221,8 @@ export default () => {
     strm: typeof fs.WriteStream,
     success: false,
     to: <Timer><unknown>null,
-    k: null as any
+    k: null as any,
+    state: 'DEAD' as 'LIVE' | 'DEAD'
   };
 
   const getStdout = (): any => {
@@ -195,7 +236,10 @@ export default () => {
   // var strm, success = false;
 
   function getStream(force: boolean) {
-    if (!(force || cache.success)) {
+    // if (!(force || cache.success)) {
+    //   return null;
+    // }
+    if(!mergedroodlesConf.processLogPath){
       return null;
     }
     return fs.createWriteStream(mergedroodlesConf.processLogPath, {autoClose: true})
@@ -341,7 +385,7 @@ export default () => {
 
       cache.strm = getStream(false) as any;
 
-      const n = cp.spawn('bash');
+      const n = cp.spawn('bash'); //  ['--','--roodles']
 
       n.stdin.end(
         `${mergedroodlesConf.exec} ${mergedroodlesConf.processArgs.join(' ')}`
@@ -370,8 +414,28 @@ export default () => {
 
       n.stdout.setEncoding('utf8');
       n.stderr.setEncoding('utf8');
+
+      for(const c of metaConnections){
+        c.write('clear');
+      }
+
+      for(const c of connections){
+        const p = n.stdout.pipe(c, {end: false}).on('error', e => {
+            p.unpipe();
+            p.removeAllListeners();
+        });
+      }
+
       n.stdout.pipe(getStdout(), {end: true});
       n.stderr.pipe(getStderr(), {end: true});
+
+      const p = n.stdout.pipe(new JSONParser()).on('data', d => {
+          if(d && d.server_state === 'listening'){
+            p.unpipe();
+            p.removeAllListeners();
+            stdio.log('LIVE');
+          }
+      });
 
       n.stderr.on('data', d => {
         if (String(d).match(/error/i)) {
@@ -380,7 +444,7 @@ export default () => {
           });
           const joined = stck.join('\n');
           console.error('\n');
-          console.error(chalk.bgRed.white(' => captured stderr from your process => '));
+          console.error(chalk.bgRed.white('captured stderr from your process => '));
           console.error(chalk.red.bold(joined));
         }
       });
@@ -396,12 +460,17 @@ export default () => {
 
       clearTimeout(cache.to);
       cache.to = setTimeout(() => {
+
         let exited = false;
+
+        stdio.log('DEAD');
+
         const to = setTimeout(onExitOrTimeout, 2500);
-        cache.k.once('exit', (code: any) => {
+        const listener = (code: any) => {
           exited = true;
           onExitOrTimeout();
-        });
+        };
+        cache.k.once('exit', listener);
 
         function onExitOrTimeout() {
           clearTimeout(to);
@@ -422,15 +491,18 @@ export default () => {
         // process.kill(cache.k.pid, 'SIGINT');
         // cache.k.kill(mergedroodlesConf.signal);
 
-        killProcs(cache.k.pid, 'KILL', (err, results) => {
+        const c = cache.k;
+        killProcs(cache.k.pid, 'INT', (err, results) => {
+          cache.k.kill('SIGINT');
           log.info({err, results});
         });
 
-        const c = cache.k;
+
         // process.kill(c.pid, 'SIGKILL');
         setTimeout(() => {
           if (!exited) {
             killProcs(c.pid, 'KILL', (err, results) => {
+              cache.k.kill('SIGKILL');
               log.info({err, results});
             });
           }
@@ -454,9 +526,9 @@ export default () => {
 
     for(const i of include){
       const w = fs.watch(i, (event: string, filename: string) => {
-        console.log('hello:');
+        console.log('hello:', event, filename);
         // log.info('watched file changed => ', path);
-        killAndRestart(200);
+        killAndRestart(50);
       });
     }
 

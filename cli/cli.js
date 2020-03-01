@@ -1,3 +1,9 @@
 #!/usr/bin/env node
 
-require('../dist/cli.js');
+if(process.argv.includes('--proxy')){
+  require('../dist/proxy-server');
+}
+else {
+  require('../dist/cli.js');
+}
+
