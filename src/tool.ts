@@ -31,44 +31,85 @@ const flattenDeep = (a: Array<any>): Array<any> => {
 
 export default () => {
 
+  const cache = {
+    strm: typeof fs.WriteStream,
+    success: false,
+    to: <Timer><unknown>null,
+    k: null as any,
+    state: 'DEAD' as 'LIVE' | 'DEAD'
+  };
+
   const cwd = process.cwd();
   const sock = '/tmp/cp.api.sock';
   const metaSock = '/tmp/cp.api.meta.sock';
-  try{
+
+  try {
     fs.unlinkSync(sock)
   }
-  catch(err){
+  catch (err) {
     // console.warn(err);
   }
 
-  try{
+  try {
     fs.unlinkSync(metaSock)
   }
-  catch(err){
+  catch (err) {
     // console.warn(err);
   }
 
   const connections = new Set<net.Socket>();
 
   const server = net.createServer(s => {
-      connections.add(s);
+
+    connections.add(s);
+
+    if (cache.state === 'LIVE') {
+      if (cache.k) {
+        cache.k.stdout.pipe(s, {end: false});
+        cache.k.stderr.pipe(s, {end: false});
+      }
+      else {
+        log.warn('process state is "LIVE" but cache.k was not defined.')
+      }
+    }
+
+    s.once('disconnect', () => {
+      connections.delete(s);
+    });
+    s.once('error', () => {
+      connections.delete(s);
+    });
+    s.once('end', () => {
+      connections.delete(s);
+    });
+
   });
 
   server.listen(sock, () => {
     log.info('uds server listening on:', sock)
   });
 
-
   const metaConnections = new Set<net.Socket>();
 
   const metaServer = net.createServer(s => {
+
     metaConnections.add(s);
+
+    s.once('disconnect', () => {
+      metaConnections.delete(s);
+    });
+    s.once('error', () => {
+      metaConnections.delete(s);
+    });
+    s.once('end', () => {
+      metaConnections.delete(s);
+    });
+
   });
 
   metaServer.listen(metaSock, () => {
     log.info('uds meta server listening on:', sock)
   });
-
 
   var parser = dashdash.createParser({options: options});
   try {
@@ -81,7 +122,7 @@ export default () => {
 
   if (opts.help) {
     var help = parser.help({includeEnv: true}).trimRight();
-    log.info('\n');
+    log.newline();
     log.info('usage: roodles [OPTIONS]\n\n' + 'options:\n' + help + '\n\n');
     process.exit(0);
   }
@@ -172,7 +213,8 @@ export default () => {
 
   if (opts.signal) {
     override.signal = String(opts.signal).trim();
-    assert(['SIGINT', 'SIGTERM', 'SIGKILL'].indexOf(String(override.signal).trim()) > -1, ' => Value passed as "signal" ' +
+    assert(['SIGINT', 'SIGTERM', 'SIGKILL'].indexOf(String(override.signal).trim()) > -1,
+      ' => Value passed as "signal" ' +
       'option needs to be one of {"SIGINT","SIGTERM","SIGKILL"},\nyou passed => "' + override.signal + '".');
   }
 
@@ -217,14 +259,6 @@ export default () => {
 
   console.log({mergedroodlesConf});
 
-  const cache = {
-    strm: typeof fs.WriteStream,
-    success: false,
-    to: <Timer><unknown>null,
-    k: null as any,
-    state: 'DEAD' as 'LIVE' | 'DEAD'
-  };
-
   const getStdout = (): any => {
     return cache.strm || process.stdout;
   };
@@ -239,7 +273,7 @@ export default () => {
     // if (!(force || cache.success)) {
     //   return null;
     // }
-    if(!mergedroodlesConf.processLogPath){
+    if (!mergedroodlesConf.processLogPath) {
       return null;
     }
     return fs.createWriteStream(mergedroodlesConf.processLogPath, {autoClose: true})
@@ -405,7 +439,15 @@ export default () => {
         log.warn('spawn error:', err.stack || err);
       });
 
-      n.once('exit', code => {
+      n.once('exit', (code: any) => {
+        if (code > 0) {
+          for (const c of metaConnections) {
+            if (!c.writable) {
+              continue;
+            }
+            c.write('crashed\n');
+          }
+        }
         if (!(n as any).isRoodlesKilled) {
           log.warn(`Looks like your process crashed (with code ${code})`);
           log.warn(`...waiting for file changes before restarting.`);
@@ -415,27 +457,38 @@ export default () => {
       n.stdout.setEncoding('utf8');
       n.stderr.setEncoding('utf8');
 
-      for(const c of metaConnections){
-        c.write('clear');
+      for (const c of metaConnections) {
+        if (!c.writable) {
+          continue;
+        }
+        c.write('clear\n');
       }
 
-      for(const c of connections){
-        const p = n.stdout.pipe(c, {end: false}).on('error', e => {
+      for (const c of connections) {
+        if (!c.writable) {
+          continue;
+        }
+        const p = n.stdout.pipe(c, {end: false})
+          .once('error', e => {
             p.unpipe();
             p.removeAllListeners();
-        });
+          });
       }
 
-      n.stdout.pipe(getStdout(), {end: true});
-      n.stderr.pipe(getStderr(), {end: true});
+      // n.stdout.pipe(getStdout(), {end: true});
+      // n.stderr.pipe(getStderr(), {end: true});
 
-      const p = n.stdout.pipe(new JSONParser()).on('data', d => {
-          if(d && d.server_state === 'listening'){
-            p.unpipe();
-            p.removeAllListeners();
-            stdio.log('LIVE');
-          }
-      });
+      const p1 = new JSONParser();
+      const p = n.stdout.pipe(p1, {end: false}).on('data', listener);
+
+      function listener(d: any) {
+        if (d && d.server_state === 'listening') {
+          p.removeListener('data', listener);
+          p1.removeListener('data', listener);
+          cache.state = 'LIVE';
+          stdio.log({state: 'LIVE'});
+        }
+      }
 
       n.stderr.on('data', d => {
         if (String(d).match(/error/i)) {
@@ -463,7 +516,8 @@ export default () => {
 
         let exited = false;
 
-        stdio.log('DEAD');
+        cache.state = 'DEAD';
+        stdio.log({state: 'DEAD'});
 
         const to = setTimeout(onExitOrTimeout, 2500);
         const listener = (code: any) => {
@@ -475,6 +529,8 @@ export default () => {
         function onExitOrTimeout() {
           clearTimeout(to);
           console.log('exitted...');
+          cache.k.stdout.removeAllListeners();
+          cache.k.stderr.removeAllListeners();
           cache.k.removeAllListeners();
           cache.k.unref();
           cache.k = launch();
@@ -496,7 +552,6 @@ export default () => {
           cache.k.kill('SIGINT');
           log.info({err, results});
         });
-
 
         // process.kill(c.pid, 'SIGKILL');
         setTimeout(() => {
@@ -524,7 +579,7 @@ export default () => {
 
     // const f = path.resolve(__dirname + '/test/dist/first.js');
 
-    for(const i of include){
+    for (const i of include) {
       const w = fs.watch(i, (event: string, filename: string) => {
         console.log('hello:', event, filename);
         // log.info('watched file changed => ', path);
