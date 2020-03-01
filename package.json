@@ -40,6 +40,7 @@
     "dashdash": "^1.14.1",
     "http-proxy": "^1.18.0",
     "json-stdio": "^0.1.112",
+    "prepend-transform": "0.0.1019",
     "residence": "0.0.217"
   },
   "devDependencies": {

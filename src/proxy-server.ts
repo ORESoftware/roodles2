@@ -23,7 +23,7 @@ process.on('unhandledRejection', e => {
 });
 
 const cache = {
-  state: 'DEAD'
+  state: 'DEAD' as 'DEAD' | 'LIVE'
 };
 
 process.stdin.resume()
@@ -48,8 +48,7 @@ process.stdin.resume()
     log.info(d);
   });
 
-const proxy = httpProxy.createProxyServer({target:'http://localhost:2020'}); // See (†)
-
+// const proxy = httpProxy.createProxyServer({target:'http://localhost:2020'}); // See (†)
 
 const s = http.createServer((req, res) => {
 
@@ -62,11 +61,6 @@ const s = http.createServer((req, res) => {
   // return proxy.web(req,res);
 
   const z = () => {
-
-    // res.end('foo');
-    //
-    // return;
-
     const r = http.request({
       method: req.method,
       headers: req.headers,
@@ -103,5 +97,8 @@ s.on('error', e => {
 });
 
 s.listen(2021, () => {
-  log.info('')
+  log.info(
+    'roodles proxy-server is listening on port:', 2021,
+    'and forwarding requests to port:', 2020
+  );
 });

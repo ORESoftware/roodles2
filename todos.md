@@ -12,4 +12,6 @@ done;
 
 3. allow user to define custom env vars on roodles.conf.js
 
+4. migrate from roodles.conf.js to .roodles.rc, with the dot in front.
+
 
