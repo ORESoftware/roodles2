@@ -79,6 +79,11 @@ const s = http.createServer((req, res) => {
   console.log('got a request, state:', cache);
 
   const z = () => {
+
+    if(res.finished){
+      return;
+    }
+
     const r = http.request({
       method: req.method,
       headers: req.headers,
@@ -104,6 +109,7 @@ const s = http.createServer((req, res) => {
     return z();
   }
 
+  res.setHeader('roodles_waiting', JSON.stringify({value: true}));
   // throw 'waiting'
   waiting.push(z);
 

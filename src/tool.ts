@@ -352,10 +352,7 @@ export default () => {
         n.once('exit', (code: any) => {
           if (code > 0) {
             for (const c of metaConnections) {
-              if (!c.writable) {
-                continue;
-              }
-              c.write('crashed\n');
+              c.writable && c.write('crashed\n');
             }
           }
           if (!(n as any).isRoodlesKilled) {
@@ -368,10 +365,7 @@ export default () => {
         n.stderr.setEncoding('utf8');
 
         for (const c of metaConnections) {
-          if (!c.writable) {
-            continue;
-          }
-          c.write('clear\n');
+          c.writable && c.write('clear\n');
         }
 
         for (const c of stdoutConnections) {
@@ -379,6 +373,10 @@ export default () => {
             continue;
           }
           const p = n.stdout.pipe(c, {end: false})
+            .once('end', () => {
+              p.unpipe();
+              p.removeAllListeners();
+            })
             .once('error', e => {
               log.warn('pipe error to stdout conn:', e);
               p.unpipe();
@@ -391,6 +389,10 @@ export default () => {
             continue;
           }
           const p = n.stderr.pipe(c, {end: false})
+            .once('end', () => {
+              p.unpipe();
+              p.removeAllListeners();
+            })
             .once('error', e => {
               log.warn('pipe error to stderr conn:', e);
               p.unpipe();
