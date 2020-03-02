@@ -4,6 +4,7 @@ const path = require('path');
 
 module.exports = {
   exec: 'node test/dist/first.js',
+  portsUsed: [],
   signal: 'SIGINT',
   processArgs: ['--foo', 'bar', '--baz', 'bam'],
   restartUponChanges: true,

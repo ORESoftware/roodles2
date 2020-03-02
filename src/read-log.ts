@@ -24,15 +24,29 @@ process.stdin.resume().on('data', d => {
     log.info('meta connected');
   });
 
+  metaConn.once('end', () => {
+    log.warn('meta stream ended.');
+    process.exit(0)
+  });
+
   metaConn.on('error', e => {
-    console.error('meta conn error:', e);
+   log.error('meta conn error:', e);
+    process.exit(0);
   });
 
   metaConn.on('data', d => {
+
     if(String(d).trim() === 'clear'){
       log.info('clearing the screen.');
       process.stdout.write('\x1Bc');
       log.info('new proc starting..');
+      return;
+    }
+
+    if(String(d).trim() === 'restarting'){
+      log.info('clearing the screen.');
+      process.stdout.write('\x1Bc');
+      log.info('new proc starting soon..');
       return;
     }
 
@@ -57,8 +71,14 @@ process.stdin.resume().on('data', d => {
     log.info('stdout pipe connected');
   });
 
+  readStdoutConn.once('end', () => {
+    log.warn('stdout stream ended.');
+    process.exit(0)
+  });
+
   readStdoutConn.on('error', e => {
-    console.error('conn error:', e);
+   log.error('conn error:', e);
+    process.exit(0);
   });
 
   readStdoutConn
@@ -76,8 +96,14 @@ process.stdin.resume().on('data', d => {
     log.info('stderr pipe connected');
   });
 
-  readStderrConn.on('error', e => {
-    console.error('conn error:', e);
+  readStderrConn.once('end', () => {
+    log.warn('stderr stream ended.');
+    process.exit(0)
+  });
+
+  readStderrConn.once('error', e => {
+   log.error('conn error:', e);
+    process.exit(0)
   });
 
   readStderrConn

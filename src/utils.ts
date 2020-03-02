@@ -35,6 +35,11 @@ export const mustGetEnvVar = (key: string) : string => {
   return val;
 };
 
+export const getEnvVar = (key: string) : string => {
+  // const key = 'roodles_stderr_sock';
+  return process.env[key] || ''; // '/tmp/cp.api.stderr.sock';
+};
+
 export const flattenDeep = (a: Array<any>): Array<any> => {
   return a.reduce((acc, val) => Array.isArray(val) ? acc.concat(flattenDeep(val)) : acc.concat(val), []);
 };
