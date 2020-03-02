@@ -3,6 +3,7 @@
 import * as fs from 'fs';
 import * as net from "net";
 import log from "./logging";
+import * as utils from './utils';
 
 type Conns = {
   stdoutConnections: Set<net.Socket>,
@@ -13,7 +14,7 @@ type Conns = {
 export const launchServers =  (cache: any, {stdoutConnections, stderrConnections, metaConnections}: Conns) => {
 
   {
-    const stdoutSock = '/tmp/cp.api.stdout.sock';
+    const stdoutSock = utils.mustGetEnvVar('roodles_stdout_sock');
 
     try {
       fs.unlinkSync(stdoutSock)
@@ -54,7 +55,8 @@ export const launchServers =  (cache: any, {stdoutConnections, stderrConnections
 
   {
 
-    const stderrSock = '/tmp/cp.api.stderr.sock';
+    // const stderrSock = '/tmp/cp.api.stderr.sock';
+    const stderrSock = utils.mustGetEnvVar('roodles_stderr_sock');
 
     try {
       fs.unlinkSync(stderrSock)
@@ -96,7 +98,8 @@ export const launchServers =  (cache: any, {stdoutConnections, stderrConnections
 
   {
 
-    const metaSock = '/tmp/cp.api.meta.sock';
+    // const metaSock = '/tmp/cp.api.meta.sock';
+    const metaSock = utils.mustGetEnvVar('roodles_meta_sock');
 
     try {
       fs.unlinkSync(metaSock)
@@ -126,4 +129,4 @@ export const launchServers =  (cache: any, {stdoutConnections, stderrConnections
     });
   }
 
-}
+};

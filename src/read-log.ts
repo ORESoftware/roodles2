@@ -3,17 +3,25 @@
 import net = require('net');
 import {pt} from 'prepend-transform'
 import * as chalk from 'chalk';
+import * as utils from './utils';
+import log from './logging';
 
 // clear screen
 process.stdout.write('\x1Bc');
 
+process.stdin.resume().on('data', d => {
+  if(String(d || '').trim().toLowerCase() === 'clear'){
+    log.info('clearing the screen..');
+    process.stdout.write('\x1Bc');
+  }
+});
 
 {
-
-  const metaConn = net.createConnection('/tmp/cp.api.meta.sock');
+  const metaSock = utils.mustGetEnvVar('roodles_meta_sock');  // '/tmp/cp.api.meta.sock'
+  const metaConn = net.createConnection(metaSock);
 
   metaConn.on('connect', () => {
-    console.log('meta connected');
+    log.info('meta connected');
   });
 
   metaConn.on('error', e => {
@@ -22,18 +30,18 @@ process.stdout.write('\x1Bc');
 
   metaConn.on('data', d => {
     if(String(d).trim() === 'clear'){
-      console.log('clearing the screen.');
+      log.info('clearing the screen.');
       process.stdout.write('\x1Bc');
-      console.log('new proc starting..');
+      log.info('new proc starting..');
       return;
     }
 
     if(String(d).trim() === 'crashed'){
-      console.log('proc crashed, waiting for restart.');
+      log.info('proc crashed, waiting for restart.');
       return;
     }
 
-    console.log('message from roodles:', String(d).trim());
+    log.info('message from roodles:', String(d).trim());
 
   });
 
@@ -41,12 +49,12 @@ process.stdout.write('\x1Bc');
 
 
 {
-
-  const stdoutSockFile = '/tmp/cp.api.stdout.sock';
+  // const stdoutSockFile = '/tmp/cp.api.stdout.sock';
+  const stdoutSockFile = utils.mustGetEnvVar('roodles_stdout_sock');  // '/tmp/cp.api.stdout.sock'
   const readStdoutConn = net.createConnection(stdoutSockFile);
 
   readStdoutConn.on('connect', () => {
-    console.log('connected');
+    log.info('stdout pipe connected');
   });
 
   readStdoutConn.on('error', e => {
@@ -60,13 +68,12 @@ process.stdout.write('\x1Bc');
 
 
 {
-
-  const stderrSockFile = '/tmp/cp.api.stderr.sock';
-
+  // const stderrSockFile = '/tmp/cp.api.stderr.sock';
+  const stderrSockFile = utils.mustGetEnvVar('roodles_stderr_sock');
   const readStderrConn = net.createConnection(stderrSockFile);
 
   readStderrConn.on('connect', () => {
-    console.log('connected');
+    log.info('stderr pipe connected');
   });
 
   readStderrConn.on('error', e => {
@@ -76,6 +83,5 @@ process.stdout.write('\x1Bc');
   readStderrConn
     .pipe(pt(chalk.magenta(stderrSockFile) + ': '))
     .pipe(process.stdout);
-
 }
 

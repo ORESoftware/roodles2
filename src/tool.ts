@@ -484,12 +484,26 @@ export default () => {
     process.stdin.resume()
       .setEncoding('utf8')
       .on('data', d => {
-        if (String(d || '').trim() === 'rs') {
+
+        const userInput = String(d || '').trim().toLowerCase();
+
+        if (userInput === 'rs') {
           if (mergedroodlesConf.verbosity > 0) {
             log.info(' => "rs" captured...');
           }
           killAndRestart(0);
+          return;
         }
+
+        if (userInput === 'clear') {
+          if (mergedroodlesConf.verbosity > 0) {
+            log.info(' => "clear" captured...');
+          }
+          process.stdout.write('\x1Bc');
+          return;
+        }
+
+        log.warn('Command not recognized:', userInput)
       });
 
     // const f = path.resolve(__dirname + '/test/dist/first.js');

@@ -7,6 +7,17 @@ import * as async from 'async';
 import * as chalk from 'chalk';
 import * as path from 'path';
 
+export const mustGetEnvVar = (key: string) : string => {
+  // const key = 'roodles_stderr_sock';
+  const val = process.env[key] || ''; // '/tmp/cp.api.stderr.sock';
+
+  if(!val){
+    log.error(`The following env var needs to be defined: '${key}' ...`);
+    process.exit(1);
+  }
+
+  return val;
+};
 
 export const flattenDeep = (a: Array<any>): Array<any> => {
   return a.reduce((acc, val) => Array.isArray(val) ? acc.concat(flattenDeep(val)) : acc.concat(val), []);
