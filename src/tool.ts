@@ -40,76 +40,126 @@ export default () => {
   };
 
   const cwd = process.cwd();
-  const sock = '/tmp/cp.api.sock';
-  const metaSock = '/tmp/cp.api.meta.sock';
-
-  try {
-    fs.unlinkSync(sock)
-  }
-  catch (err) {
-    // console.warn(err);
-  }
-
-  try {
-    fs.unlinkSync(metaSock)
-  }
-  catch (err) {
-    // console.warn(err);
-  }
-
-  const connections = new Set<net.Socket>();
-
-  const server = net.createServer(s => {
-
-    connections.add(s);
-
-    if (cache.state === 'LIVE') {
-      if (cache.k) {
-        cache.k.stdout.pipe(s, {end: false});
-        cache.k.stderr.pipe(s, {end: false});
-      }
-      else {
-        log.warn('process state is "LIVE" but cache.k was not defined.')
-      }
-    }
-
-    s.once('disconnect', () => {
-      connections.delete(s);
-    });
-    s.once('error', () => {
-      connections.delete(s);
-    });
-    s.once('end', () => {
-      connections.delete(s);
-    });
-
-  });
-
-  server.listen(sock, () => {
-    log.info('uds server listening on:', sock)
-  });
-
+  const stdoutConnections = new Set<net.Socket>();
+  const stderrConnections = new Set<net.Socket>();
   const metaConnections = new Set<net.Socket>();
 
-  const metaServer = net.createServer(s => {
 
-    metaConnections.add(s);
+  {
+    const stdoutSock = '/tmp/cp.api.stdout.sock';
 
-    s.once('disconnect', () => {
-      metaConnections.delete(s);
+    try {
+      fs.unlinkSync(stdoutSock)
+    }
+    catch (err) {
+      // console.warn(err);
+    }
+
+    const stdoutServer = net.createServer(s => {
+
+      stdoutConnections.add(s);
+
+      if (cache.state === 'LIVE') {
+        if (cache.k) {
+          cache.k.stdout.pipe(s, {end: false});
+        }
+        else {
+          log.warn('process state is "LIVE" but cache.k was not defined.')
+        }
+      }
+
+      s.once('disconnect', () => {
+        stdoutConnections.delete(s);
+      });
+      s.once('error', () => {
+        stdoutConnections.delete(s);
+      });
+      s.once('end', () => {
+        stdoutConnections.delete(s);
+      });
+
     });
-    s.once('error', () => {
-      metaConnections.delete(s);
+
+    stdoutServer.listen(stdoutSock, () => {
+      log.info('uds stdout server listening on:', stdoutSock)
     });
-    s.once('end', () => {
-      metaConnections.delete(s);
+  }
+
+  {
+
+    const stderrSock = '/tmp/cp.api.stderr.sock';
+
+
+    try {
+      fs.unlinkSync(stderrSock)
+    }
+    catch (err) {
+      // console.warn(err);
+    }
+
+    const stderrServer = net.createServer(s => {
+
+      stderrConnections.add(s);
+
+      if (cache.state === 'LIVE') {
+        if (cache.k) {
+          cache.k.stderr.pipe(s, {end: false});
+        }
+        else {
+          log.warn('process state is "LIVE" but cache.k was not defined.')
+        }
+      }
+
+      s.once('disconnect', () => {
+        stderrConnections.delete(s);
+      });
+      s.once('error', () => {
+        stderrConnections.delete(s);
+      });
+      s.once('end', () => {
+        stderrConnections.delete(s);
+      });
+
     });
 
-  });
+    stderrServer.listen(stderrSock, () => {
+      log.info('uds stderr server listening on:', stderrSock)
+    });
+  }
 
-  metaServer.listen(metaSock, () => {
-    log.info('uds meta server listening on:', sock)
-  });
+
+  {
+
+    const metaSock = '/tmp/cp.api.meta.sock';
+
+    try {
+      fs.unlinkSync(metaSock)
+    }
+    catch (err) {
+      // console.warn(err);
+    }
+
+    const metaServer = net.createServer(s => {
+
+      metaConnections.add(s);
+
+      s.once('disconnect', () => {
+        metaConnections.delete(s);
+      });
+      s.once('error', () => {
+        metaConnections.delete(s);
+      });
+      s.once('end', () => {
+        metaConnections.delete(s);
+      });
+
+    });
+
+    metaServer.listen(metaSock, () => {
+      log.info('uds meta server listening on:', metaSock)
+    });
+  }
+
 
   var parser = dashdash.createParser({options: options});
   try {
@@ -464,12 +514,25 @@ export default () => {
         c.write('clear\n');
       }
 
-      for (const c of connections) {
+      for (const c of stdoutConnections) {
         if (!c.writable) {
           continue;
         }
         const p = n.stdout.pipe(c, {end: false})
           .once('error', e => {
+            log.warn('pipe error to stdout conn:', e);
+            p.unpipe();
+            p.removeAllListeners();
+          });
+      }
+
+      for (const c of stderrConnections) {
+        if (!c.writable) {
+          continue;
+        }
+        const p = n.stderr.pipe(c, {end: false})
+          .once('error', e => {
+            log.warn('pipe error to stderr conn:', e);
             p.unpipe();
             p.removeAllListeners();
           });
