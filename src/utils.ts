@@ -6,6 +6,22 @@ import log from './logging';
 import * as async from 'async';
 import * as chalk from 'chalk';
 import * as path from 'path';
+import * as fs from 'fs';
+
+export const findPathsToWatch = (dir: string) : Array<string> => {
+  const stats = fs.statSync(dir);
+
+  if(!stats.isDirectory()){
+    return [dir];
+  }
+
+  const ret = [];
+  const items = fs.readdirSync(dir);
+  for(const v of items){
+    ret.push(...findPathsToWatch(path.resolve(dir + '/' + v)));
+  }
+  return ret;
+};
 
 export const mustGetEnvVar = (key: string) : string => {
   // const key = 'roodles_stderr_sock';

@@ -262,8 +262,8 @@ export default () => {
       fs.statSync(utils.getAbsPath(v, projectRoot))
     }
     catch (e) {
-      log.error('Could not stat the following file:', v);
-      // process.exit(1);
+      log.error('Could not stat the following file path we were supposed to watch:', v);
+      process.exit(1);
     }
   }
 
@@ -508,7 +508,15 @@ export default () => {
 
     // const f = path.resolve(__dirname + '/test/dist/first.js');
 
-    for (const i of include) {
+    const pathsToPatch = [];
+
+    for(let v of include){
+      pathsToPatch.push(...utils.findPathsToWatch(v))
+    }
+
+    const flattenedPaths = Array.from(new Set(utils.flattenDeep(pathsToPatch)));
+
+    for (const i of flattenedPaths) {
       const w = fs.watch(i, (event: string, filename: string) => {
         console.log('hello:', event, filename);
         // log.info('watched file changed => ', path);
