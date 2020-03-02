@@ -448,14 +448,20 @@ export default () => {
           const to = setTimeout(() => {
             log.warn('wait for exit timed out...');
             timedout = true;
-            onExitOrTimeout();
+            if(!exited){
+              onExitOrTimeout();
+            }
+
           }, 2500);
 
           const listener = (code: any) => {
             exited = true;
             console.log('exitted...');
-            onExitOrTimeout();
+            if(!timeout){
+              onExitOrTimeout();
+            }
           };
+
           cache.k.once('exit', listener);
 
           function onExitOrTimeout() {
@@ -499,6 +505,9 @@ export default () => {
           // process.kill(c.pid, 'SIGKILL');
           setTimeout(() => {
             if (!exited) {
+              setTimeout(() => {
+                cache.k.kill('SIGKILL');
+              }, 100);
               utils.killProcs(c.pid, 'KILL', (err, results) => {
                 cache.k.kill('SIGKILL');
                 log.info({err, results});
