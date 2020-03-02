@@ -5,6 +5,16 @@ import * as cp from 'child_process'
 import log from './logging';
 import * as async from 'async';
 import * as chalk from 'chalk';
+import * as path from 'path';
+
+
+export const flattenDeep = (a: Array<any>): Array<any> => {
+  return a.reduce((acc, val) => Array.isArray(val) ? acc.concat(flattenDeep(val)) : acc.concat(val), []);
+};
+
+export const getAbsPath = (p: string, projectRoot: string) => {
+  return path.isAbsolute(p) ? p : path.resolve(projectRoot + '/' + p);
+};
 
 export const killProcs = (pid: number, signal: 'KILL' | 'INT', cb: EVCb<any>) => {
 

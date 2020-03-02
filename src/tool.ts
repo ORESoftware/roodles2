@@ -16,18 +16,14 @@ import * as residence from 'residence'
 const dashdash = require('dashdash');
 
 //project
+import * as utils from './utils'
 import {options} from "./cli-options";
 import log from "./logging";
 import Timer = NodeJS.Timer;
-import {Stream, Writable} from "stream";
-import {ChildProcess} from "child_process";
-import {killProcs} from "./utils";
 import JSONParser from "@oresoftware/json-stream-parser";
 import * as net from 'net';
-
-const flattenDeep = (a: Array<any>): Array<any> => {
-  return a.reduce((acc, val) => Array.isArray(val) ? acc.concat(flattenDeep(val)) : acc.concat(val), []);
-};
+import {getDefaultConf, getOverride} from "./default-conf";
+import {launchServers} from "./socket-servers";
 
 export default () => {
 
@@ -44,124 +40,13 @@ export default () => {
   const stderrConnections = new Set<net.Socket>();
   const metaConnections = new Set<net.Socket>();
 
+  launchServers(cache, {
+    stderrConnections,
+    stdoutConnections,
+    metaConnections
+  });
 
-  {
-    const stdoutSock = '/tmp/cp.api.stdout.sock';
-
-    try {
-      fs.unlinkSync(stdoutSock)
-    }
-    catch (err) {
-      // console.warn(err);
-    }
-
-    const stdoutServer = net.createServer(s => {
-
-      stdoutConnections.add(s);
-
-      if (cache.state === 'LIVE') {
-        if (cache.k) {
-          cache.k.stdout.pipe(s, {end: false});
-        }
-        else {
-          log.warn('process state is "LIVE" but cache.k was not defined.')
-        }
-      }
-
-      s.once('disconnect', () => {
-        stdoutConnections.delete(s);
-      });
-      s.once('error', () => {
-        stdoutConnections.delete(s);
-      });
-      s.once('end', () => {
-        stdoutConnections.delete(s);
-      });
-
-    });
-
-    stdoutServer.listen(stdoutSock, () => {
-      log.info('uds stdout server listening on:', stdoutSock)
-    });
-  }
-
-  {
-
-    const stderrSock = '/tmp/cp.api.stderr.sock';
-
-
-    try {
-      fs.unlinkSync(stderrSock)
-    }
-    catch (err) {
-      // console.warn(err);
-    }
-
-    const stderrServer = net.createServer(s => {
-
-      stderrConnections.add(s);
-
-      if (cache.state === 'LIVE') {
-        if (cache.k) {
-          cache.k.stderr.pipe(s, {end: false});
-        }
-        else {
-          log.warn('process state is "LIVE" but cache.k was not defined.')
-        }
-      }
-
-      s.once('disconnect', () => {
-        stderrConnections.delete(s);
-      });
-      s.once('error', () => {
-        stderrConnections.delete(s);
-      });
-      s.once('end', () => {
-        stderrConnections.delete(s);
-      });
-
-    });
-
-    stderrServer.listen(stderrSock, () => {
-      log.info('uds stderr server listening on:', stderrSock)
-    });
-  }
-
-
-  {
-
-    const metaSock = '/tmp/cp.api.meta.sock';
-
-    try {
-      fs.unlinkSync(metaSock)
-    }
-    catch (err) {
-      // console.warn(err);
-    }
-
-    const metaServer = net.createServer(s => {
-
-      metaConnections.add(s);
-
-      s.once('disconnect', () => {
-        metaConnections.delete(s);
-      });
-      s.once('error', () => {
-        metaConnections.delete(s);
-      });
-      s.once('end', () => {
-        metaConnections.delete(s);
-      });
-
-    });
-
-    metaServer.listen(metaSock, () => {
-      log.info('uds meta server listening on:', metaSock)
-    });
-  }
-
-
-  var parser = dashdash.createParser({options: options});
+  const parser = dashdash.createParser({options: options});
   try {
     var opts = parser.parse(process.argv);
   }
@@ -196,34 +81,13 @@ export default () => {
     log.info(chalk.cyan.bold.underline(' => Roodles considers the following to be your project root => '), chalk.cyan('"' + projectRoot + '"'));
   }
 
-  function getAbsPath(p: string) {
-    return path.isAbsolute(p) ? p : path.resolve(projectRoot + '/' + p);
-  }
-
-  const defaults = {
-    verbosity: 2,
-    signal: 'SIGINT',
-    processArgs: [],
-    restartUponChange: true,
-    restartUponAddition: false,
-    restartUponUnlink: false,
-    include: projectRoot,
-    exclude: [
-      /node_modules/,
-      /public/,
-      /bower_components/,
-      /.git/,
-      /.idea/,
-      /package.json/,
-      /test/
-    ]
-  };
+  const defaults = getDefaultConf(projectRoot);
 
   try {
     var roodlesConf = require(projectRoot + '/roodles.conf.js');
 
     if (roodlesConf.processLogPath) {
-      roodlesConf.processLogPath = getAbsPath(roodlesConf.processLogPath);
+      roodlesConf.processLogPath = utils.getAbsPath(roodlesConf.processLogPath, projectRoot);
     }
 
     // if (roodlesConf.exec) {
@@ -237,19 +101,7 @@ export default () => {
   }
 
   log.info('config:', roodlesConf);
-
-  const override = {
-    exec: '',
-    processLogPath: '',
-    signal: '',
-    include: [] as Array<string>,
-    exclude: [] as Array<string>,
-    restartUponChange: true,
-    restartUponAddition: true,
-    restartUponUnlink: true,
-    processArgs: [] as Array<string>,
-    verbosity: 1
-  };
+  const override = getOverride();
 
   if (!roodlesConf.exec) {
     log.error('Roodles needs an "exec" file to run!', 'You can specify one with "exec" in your ' +
@@ -258,7 +110,7 @@ export default () => {
   }
 
   if (opts.process_log_path) {
-    override.processLogPath = getAbsPath(opts.process_log_path);
+    override.processLogPath = utils.getAbsPath(opts.process_log_path, projectRoot);
   }
 
   if (opts.signal) {
@@ -382,7 +234,7 @@ export default () => {
     log.info(chalk.green(util.inspect(mergedroodlesConf)));
   }
 
-  const exclude = flattenDeep([mergedroodlesConf.exclude]);
+  const exclude = utils.flattenDeep([mergedroodlesConf.exclude]);
   const joined = exclude.join('|');
   const rgx = new RegExp('(' + joined + ')');
 
@@ -395,7 +247,7 @@ export default () => {
 
   const include = Array.from(
     new Set(
-      flattenDeep([mergedroodlesConf.include])
+      utils.flattenDeep([mergedroodlesConf.include])
     )
   );
 
@@ -407,7 +259,7 @@ export default () => {
 
   for (const v of include) {
     try {
-      fs.statSync(getAbsPath(v))
+      fs.statSync(utils.getAbsPath(v, projectRoot))
     }
     catch (e) {
       log.error('Could not stat the following file:', v);
@@ -611,7 +463,7 @@ export default () => {
         // cache.k.kill(mergedroodlesConf.signal);
 
         const c = cache.k;
-        killProcs(cache.k.pid, 'INT', (err, results) => {
+        utils.killProcs(cache.k.pid, 'INT', (err, results) => {
           cache.k.kill('SIGINT');
           log.info({err, results});
         });
@@ -619,7 +471,7 @@ export default () => {
         // process.kill(c.pid, 'SIGKILL');
         setTimeout(() => {
           if (!exited) {
-            killProcs(c.pid, 'KILL', (err, results) => {
+            utils.killProcs(c.pid, 'KILL', (err, results) => {
               cache.k.kill('SIGKILL');
               log.info({err, results});
             });
