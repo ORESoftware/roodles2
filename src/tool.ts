@@ -543,9 +543,9 @@ export default () => {
       // const f = path.resolve(__dirname + '/test/dist/first.js');
 
       const pathsToPatch = [];
-
+      const s = new Set<string>(); // prevent cycles if folders are symlinked etc
       for (let v of include) {
-        pathsToPatch.push(...utils.findPathsToWatch(v))
+        pathsToPatch.push(...utils.findPathsToWatch(v, s));
       }
 
       const flattenedPaths = Array.from(

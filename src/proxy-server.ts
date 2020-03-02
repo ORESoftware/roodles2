@@ -36,7 +36,7 @@ process.stdin.resume()
     if(d && d.value && d.value.state === 'LIVE'){
       cache.state = 'LIVE';
       waiting.forEach(v => {
-        console.log('value:', v);
+        // console.log('value:', v); //
         v.value();
       });
     }
@@ -87,9 +87,9 @@ const s = http.createServer((req, res) => {
       hostname: 'localhost',
       protocol: 'http:',
     }, r => {
-      for(const [k,v] of Object.entries(r.headers)){
-        res.setHeader(k,v as any);
-      }
+      // for(const [k,v] of Object.entries(r.headers)){
+      //   res.setHeader(k,v as any);
+      // }
       r.pipe(res)
     });
 

@@ -8,7 +8,14 @@ import * as chalk from 'chalk';
 import * as path from 'path';
 import * as fs from 'fs';
 
-export const findPathsToWatch = (dir: string) : Array<string> => {
+export const findPathsToWatch = (dir: string, s: Set<string>) : Array<string> => {
+
+  if(s.has(dir)){
+    return [];
+  }
+
+  s.add(dir);
+
   const stats = fs.statSync(dir);
 
   if(!stats.isDirectory()){
@@ -18,7 +25,7 @@ export const findPathsToWatch = (dir: string) : Array<string> => {
   const ret = [];
   const items = fs.readdirSync(dir);
   for(const v of items){
-    ret.push(...findPathsToWatch(path.resolve(dir + '/' + v)));
+    ret.push(...findPathsToWatch(path.resolve(dir + '/' + v), s));
   }
   return ret;
 };
