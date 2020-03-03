@@ -49,7 +49,7 @@ process.stdin.resume()
     log.info(d);
   });
 
-// const proxy = httpProxy.createProxyServer({target:'http://localhost:2020'}); // See (†)
+const proxy = httpProxy.createProxyServer({target:'http://localhost:2020'}); // See (†)
 
 const proxyPortRaw = utils.mustGetEnvVar('roodles_proxy_port');
 
@@ -77,10 +77,66 @@ catch(err){
 const s = http.createServer((req, res) => {
 
   console.log('got a request, state:', cache);
+  // console.log('req headers:', req.headers);
+
+  console.log('req method:', req.method);
+  // Access-Control-Request-Headers
+
+  // res.Header().Set("Access-Control-Allow-Origin", origin)
+  // res.Header().Set("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,PATCH")
+  // if custHead != "" {
+  //   res.Header().Set("Access-Control-Allow-Headers", custHead)
+  // } else {
+  //   res.Header().Set("Access-Control-Allow-Headers", "Content-Type, Accept")
+  // }
+  // res.Header().Set("Access-Control-Expose-Headers", "Content-Type, Results-Count, Query-Skip, Query-Limit, Next-Set, Prev-Set, Content-Length")
+  // res.Header().Set("Access-Control-Allow-Credentials", "true")
+  // res.Header().Set("Access-Control-Max-Age", "3600")
+
+  // if(String(req.method|| '').toUpperCase() === 'OPTIONS'){
+  //   res.setHeader('Access-Control-Expose-Headers', '*');
+  //   res.setHeader('Access-Control-Allow-Credentials', 'true');
+  //   res.setHeader('Access-Control-Max-Age', '3600');
+  //   res.setHeader('Access-Control-Allow-Origin', '*');
+  //   res.setHeader('Access-Control-Allow-Headers', '*');
+  //   res.setHeader('Access-Control-Allow-Methods', '*');
+  //   res.setHeader('Connection', 'keep-alive');
+  //   res.setHeader('Access-Control-Request-Method', 'POST');
+  //   res.setHeader('Allow', 'GET, POST, PUT, DELETE, OPTIONS, HEAD');
+  //   res.setHeader('Allowed', 'GET, POST, PUT, DELETE, OPTIONS, HEAD');
+  //   return res.writeHead(200);
+  // }
+
+  // if(String(req.method|| '').toUpperCase() !== 'OPTIONS') {
+  //   if(req.headers['origin'] === 'localhost' || req.headers['Origin'] === 'localhost'){
+  //     res.setHeader('Access-Control-Allow-Origin', '*');
+  //     res.setHeader('Access-Control-Allow-Headers', '*');
+  //     res.setHeader('Access-Control-Allow-Methods', '*');
+  //     log.info('allow access to all origins.')
+  //   }
+  //   else{
+  //     // log.warn('Could not set access control allow all header.')
+  //     res.setHeader('Access-Control-Allow-Origin', '*');
+  //     res.setHeader('Access-Control-Allow-Headers', '*');
+  //     res.setHeader('Access-Control-Allow-Methods', '*')
+  //   }
+  // }
+
 
   const z = () => {
 
     if(res.finished){
+      log.warn('response was already finished? original request was to:', req.url);
+      return;
+    }
+
+    proxy.web(req,res);
+  };
+
+  const m = () => {
+
+    if(res.finished){
+      log.warn('response was already finished? original request was to:', req.url);
       return;
     }
 
@@ -121,7 +177,7 @@ s.on('error', e => {
 });
 
 
-s.listen(proxyPortValue, () => {
+s.listen(proxyPortValue, 'localhost', () => {
   log.info(
     'roodles proxy-server is listening on port:', proxyPortValue,
     'and forwarding requests to port:', targetPortValue
