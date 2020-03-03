@@ -486,34 +486,47 @@ export default () => {
 
           const c = cache.k;
 
+          const proms = [];
+
           for (const p of portsToKill) {
 
-            const killer = cp.spawn('bash');
+            proms.push(new Promise((resolve) => {
 
-            killer.stdin.end(`
-              lsof -ti tcp:${p} | xargs kill -INT
-             # sleep 2;
-             # lsof -ti tcp:${p} | xargs kill -KILL
-        `);
+              const killer = cp.spawn('bash');
+
+              killer.stdin.end(`
+                  lsof -ti tcp:${p} | xargs kill -INT
+                 # sleep 2;
+                 # lsof -ti tcp:${p} | xargs kill -KILL
+             `);
+
+              killer.once('exit', resolve)
+
+            }));
+
           }
 
-          utils.killProcs(cache.k.pid, 'INT', (err, results) => {
-            cache.k.kill('SIGINT');
-            log.info({err, results});
+          Promise.all(proms).then(() => {
+            utils.killProcs(cache.k.pid, 'INT', (err, results) => {
+              cache.k.kill('SIGINT');
+              log.info({err, results});
+            });
+
+            // process.kill(c.pid, 'SIGKILL');
+            setTimeout(() => {
+              if (!exited) {
+                setTimeout(() => {
+                  cache.k.kill('SIGKILL');
+                }, 100);
+                utils.killProcs(c.pid, 'KILL', (err, results) => {
+                  cache.k.kill('SIGKILL');
+                  log.info({err, results});
+                });
+              }
+            }, 2000);
           });
 
-          // process.kill(c.pid, 'SIGKILL');
-          setTimeout(() => {
-            if (!exited) {
-              setTimeout(() => {
-                cache.k.kill('SIGKILL');
-              }, 100);
-              utils.killProcs(c.pid, 'KILL', (err, results) => {
-                cache.k.kill('SIGKILL');
-                log.info({err, results});
-              });
-            }
-          }, 2000);
+
 
         }, timeout);
       }
