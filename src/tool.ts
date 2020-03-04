@@ -190,8 +190,8 @@ export default () => {
         .once('error', function (err) {
           log.newline();
           log.error(chalk.red.bold(err.message));
-          log.warn(' => You may have accidentally used a path for "exec" or "processLogPath" that begins with "/" => \n' +
-            ' if your relative path begins with "/" then you should remove that.');
+          // log.warn(' => You may have accidentally used a path for "exec" or "processLogPath" that begins with "/" => \n' +
+          //   ' if your relative path begins with "/" then you should remove that.');
           throw err;
         });
     }
