@@ -541,6 +541,19 @@ export default () => {
             return;
           }
 
+          if (userInput === 'restart') {
+            if (mergedroodlesConf.verbosity > 0) {
+              log.info(' => "restart" captured...');
+            }
+            for (const c of metaConnections) {
+              c.writable && c.write('closing');
+            }
+            // we do a hard restart if new files are added
+            process.exit(0);
+            return;
+          }
+
+
           if (userInput === 'rs') {
             if (mergedroodlesConf.verbosity > 0) {
               log.info(' => "rs" captured...');

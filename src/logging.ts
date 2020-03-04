@@ -6,7 +6,7 @@ const isDebug = process.env.roodles_is_debug === 'yes';
 
 export const log = {
   newline: console.log.bind(console, '\n'),
-  info: console.log.bind(console),
+  info: console.log.bind(console, chalk.bold('roodles:')),
   warning: console.error.bind(console, chalk.bold.yellow.bold('roodles warn:')),
   warn: console.error.bind(console, chalk.bold.magenta.bold('roodles warn:')),
   error: console.error.bind(console, chalk.redBright.bold('roodles error:')),

@@ -15,7 +15,14 @@ export const launchServers = (cache: any, {stdoutConnections, stderrConnections,
 
   return new Promise((resolve, reject) => {
 
-    setTimeout(resolve, 1500);
+    setTimeout(resolve, 3500);
+
+    let counter = 0;
+    const count = () => {
+      if(++counter === 3){
+        resolve();
+      }
+    };
 
     {
       const stdoutSock = utils.mustGetEnvVar('roodles_stdout_sock');
@@ -41,7 +48,7 @@ export const launchServers = (cache: any, {stdoutConnections, stderrConnections,
         }
 
         s.once('connect', () => {
-          resolve();
+          count();
         });
 
         s.once('disconnect', () => {
@@ -91,7 +98,7 @@ export const launchServers = (cache: any, {stdoutConnections, stderrConnections,
         });
 
         s.once('connect', () => {
-          resolve();
+          count();
         });
 
         s.once('error', () => {
@@ -130,7 +137,7 @@ export const launchServers = (cache: any, {stdoutConnections, stderrConnections,
         });
 
         s.once('connect', () => {
-          resolve();
+          count();
         });
 
         s.once('error', () => {
