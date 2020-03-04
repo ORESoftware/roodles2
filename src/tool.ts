@@ -566,6 +566,7 @@ export default () => {
 
       }
 
+      log.info('beginning to listen to stdin.');
       process.stdin.resume()
         .setEncoding('utf8')
         .on('data', d => {
@@ -625,13 +626,20 @@ export default () => {
         )
       );
 
+      let watchCount = 0;
+
       for (const i of flattenedPaths) {
         const w = fs.watch(i, (event: string, filename: string) => {
           console.log('hello:', event, filename);
           // log.info('watched file changed => ', path);
 
           const now = Date.now();
+          const localWatchCount = ++watchCount;
           gp.then(() => {
+            if(localWatchCount < watchCount){
+              // we have a new change
+              return;
+            }
             const diff = Date.now() - now;
             killAndRestart(Math.max(1, 200 - diff));
           });
