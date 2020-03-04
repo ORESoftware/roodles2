@@ -317,7 +317,7 @@ export default () => {
 
         log.newline();
 
-        if(cache.k){
+        if (cache.k) {
           cache.k.removeAllListeners();
           cache.k.stdout.removeAllListeners();
           cache.k.stderr.removeAllListeners();
@@ -513,8 +513,6 @@ export default () => {
             // process.kill(cache.k.pid, 'SIGINT');
             // cache.k.kill(mergedroodlesConf.signal);
 
-
-
             const proms = [];
 
             for (const p of portsToKill) {
@@ -628,23 +626,64 @@ export default () => {
 
       let watchCount = 0;
 
+      let toLocal = <Timer><unknown>null;
+
       for (const i of flattenedPaths) {
         const w = fs.watch(i, (event: string, filename: string) => {
           console.log('hello:', event, filename);
           // log.info('watched file changed => ', path);
 
+          clearTimeout(toLocal);
+          toLocal = setTimeout(() => {
+            const now = Date.now();
+            const localWatchCount = ++watchCount;
+            gp.then(() => {
+              if (localWatchCount < watchCount) {
+                // we have a new change
+                return;
+              }
+              const diff = Date.now() - now;
+              killAndRestart(Math.max(1, 200 - diff));
+            });
+          }, 20);
+        });
+      }
+
+      return;
+
+      const watcher = cp.spawn('bash');
+
+      const paths = flattenedPaths.map(v => `-m '${v}'`).join(' ');
+
+      //https://stackoverflow.com/questions/1515730/is-there-a-command-like-watch-or-inotifywait-on-the-mac
+
+      console.log({paths});
+
+      watcher.stdin.end(`
+               inotifywait ${paths} -e create \
+               -e moved_to -e modify -e moved_from \
+               -e move -e create -e delete -e delete_self
+      `);
+
+      watcher.stdout.on('data', d => {
+        console.log('watcher stdout:', String(d));
+
+        clearTimeout(toLocal);
+
+        toLocal = setTimeout(() => {
           const now = Date.now();
           const localWatchCount = ++watchCount;
           gp.then(() => {
-            if(localWatchCount < watchCount){
+            if (localWatchCount < watchCount) {
               // we have a new change
               return;
             }
             const diff = Date.now() - now;
             killAndRestart(Math.max(1, 200 - diff));
           });
-        });
-      }
+        }, 20);
+
+      });
 
       // const w = fs.watchFile(f, {interval: 40}, (prev, curr) => {
       //   console.log('hello:');

@@ -19,10 +19,10 @@ export const findPathsToWatch = (dir: string, s: Set<string>) : Array<string> =>
   const stats = fs.statSync(dir);
 
   if(!stats.isDirectory()){
-    return [dir];
+    return [];
   }
 
-  const ret = [];
+  const ret = [dir];
   const items = fs.readdirSync(dir);
   for(const v of items){
     ret.push(...findPathsToWatch(path.resolve(dir + '/' + v), s));
