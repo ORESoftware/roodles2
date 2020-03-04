@@ -40,11 +40,13 @@ export default () => {
   const stderrConnections = new Set<net.Socket>();
   const metaConnections = new Set<net.Socket>();
 
+  let gp = Promise.resolve();
+
   launchServers(cache, {
     stderrConnections,
     stdoutConnections,
     metaConnections
-  }).then(() => {
+  }).then(ee => {
 
     const parser = dashdash.createParser({options: options});
     try {
@@ -187,7 +189,7 @@ export default () => {
         return null;
       }
       return fs.createWriteStream(mergedroodlesConf.processLogPath, {autoClose: true})
-        .once('error', function (err) {
+        .once('error', err => {
           log.newline();
           log.error(chalk.red.bold(err.message));
           // log.warn(' => You may have accidentally used a path for "exec" or "processLogPath" that begins with "/" => \n' +
@@ -315,6 +317,12 @@ export default () => {
 
         log.newline();
 
+        if(cache.k){
+          cache.k.removeAllListeners();
+          cache.k.stdout.removeAllListeners();
+          cache.k.stderr.removeAllListeners();
+        }
+
         if (first) {
           log.info(chalk.cyan('Roodles is now starting your process...and will restart ' +
             'your process upon file changes.'), '\n');
@@ -335,6 +343,9 @@ export default () => {
           `${mergedroodlesConf.exec} ${mergedroodlesConf.processArgs.join(' ')}`
         );
 
+        n.stdout.pipe(process.stdout);
+        n.stderr.pipe(process.stderr);
+
         if (mergedroodlesConf.verbosity > 1 && first) {
           log.info('Your process is running with pid => ', n.pid);
         }
@@ -346,7 +357,7 @@ export default () => {
         first = false;
 
         n.on('error', err => {
-          log.warn('spawn error:', err.stack || err);
+          log.warn('spawn error:', err);
         });
 
         n.once('exit', (code: any) => {
@@ -427,6 +438,10 @@ export default () => {
           }
         });
 
+        if (mergedroodlesConf.verbosity > 1) {
+          log.info('Process restarted, new process pid => ', cache.k.pid);
+        }
+
         return n;
       }
 
@@ -439,96 +454,116 @@ export default () => {
         clearTimeout(cache.to);
         cache.to = setTimeout(() => {
 
-          let exited = false;
-          let timedout = false;
-
-          cache.state = 'DEAD';
-          stdio.log({state: 'DEAD'});
-
-          const to = setTimeout(() => {
-            log.warn('wait for exit timed out...');
-            timedout = true;
-            if(!exited){
-              onExitOrTimeout();
-            }
-
-          }, 2500);
-
-          const listener = (code: any) => {
-            exited = true;
-            console.log('exitted...');
-            if(!timeout){
-              onExitOrTimeout();
-            }
-          };
-
-          cache.k.once('exit', listener);
-
-          function onExitOrTimeout() {
-            clearTimeout(to);
-            cache.k.stdout.removeAllListeners();
-            cache.k.stderr.removeAllListeners();
-            cache.k.removeAllListeners();
-            cache.k.unref();
-            cache.k = launch();
-            if (mergedroodlesConf.verbosity > 1) {
-              log.info('Process restarted, new process pid => ', cache.k.pid);
-            }
-          }
-
-          if (mergedroodlesConf.verbosity > 2) {
-            log.warn('Killing your process with the "' + mergedroodlesConf.signal + '" signal.');
-          }
-
-          (cache.k as any).isRoodlesKilled = true;
-          // process.kill(cache.k.pid, 'SIGINT');
-          // cache.k.kill(mergedroodlesConf.signal);
-
           const c = cache.k;
 
-          const proms = [];
+          gp = gp.then(() => {
 
-          for (const p of portsToKill) {
+            let exited = false;
+            let timedout = false;
+            let callable = true;
+            ee.removeAllListeners();
 
-            proms.push(new Promise((resolve) => {
+            let connCount = 0;
 
-              const killer = cp.spawn('bash');
+            cache.state = 'DEAD';
+            stdio.log({state: 'DEAD'});
 
-              killer.stdin.end(`
-                  lsof -ti tcp:${p} | xargs kill -INT
-                 # sleep 2;
-                 # lsof -ti tcp:${p} | xargs kill -KILL
-             `);
+            const listener = () => {
+              if (++connCount === 3) {
+                onExitOrTimeout();
+              }
+            };
 
-              killer.once('exit', resolve)
+            ee.on('connected', listener);
 
-            }));
+            const to = setTimeout(() => {
+              log.warn('wait for exit timed out...');
+              timedout = true;
+              if (!exited) {
+                onExitOrTimeout();
+              }
 
-          }
+            }, 2500);
 
-          Promise.all(proms).then(() => {
-            utils.killProcs(cache.k.pid, 'INT', (err, results) => {
-              cache.k.kill('SIGINT');
-              log.info({err, results});
+            c.once('exit', (code: any) => {
+              exited = true;
+              log.info('bash proc exitted with code:', code);
             });
 
-            // process.kill(c.pid, 'SIGKILL');
-            setTimeout(() => {
-              if (!exited) {
-                setTimeout(() => {
-                  cache.k.kill('SIGKILL');
-                }, 100);
-                utils.killProcs(c.pid, 'KILL', (err, results) => {
-                  cache.k.kill('SIGKILL');
-                  log.info({err, results});
-                });
+            function onExitOrTimeout() {
+              if (!callable) {
+                return;
               }
-            }, 2000);
-          });
+              ee.removeListener('connected', listener);
+              callable = false;
+              clearTimeout(to);
+              c.stdout.removeAllListeners();
+              c.stderr.removeAllListeners();
+              c.removeAllListeners();
+              c.unref();
+              cache.k = launch();
+
+            }
+
+            if (mergedroodlesConf.verbosity > 2) {
+              log.warn('Killing your process with the "' + mergedroodlesConf.signal + '" signal.');
+            }
+
+            (c as any).isRoodlesKilled = true;
+            // process.kill(cache.k.pid, 'SIGINT');
+            // cache.k.kill(mergedroodlesConf.signal);
 
 
 
+            const proms = [];
+
+            for (const p of portsToKill) {
+
+              proms.push(new Promise((resolve) => {
+
+                const killer = cp.spawn('bash');
+
+                killer.stdin.end(`
+                  set +e;
+                  lsof -ti tcp:${p} | xargs -r kill -INT
+                   sleep 0.25
+                   my_pid="$(lsof -ti tcp:${p})"
+                   if [[ ! -z "$my_pid" ]]; then
+                     sleep 1.5;
+                     lsof -ti tcp:${p} | xargs -r kill -KILL
+                   fi
+             `);
+
+                killer.once('exit', resolve)
+
+              }));
+
+            }
+
+            return Promise.all(proms).then(() => {
+
+              onExitOrTimeout();
+              c.kill('SIGINT');
+              utils.killProcs(c.pid, 'INT', (err, results) => {
+                log.info({err, results});
+              });
+
+              // process.kill(c.pid, 'SIGKILL');
+              setTimeout(() => {
+                if (!exited) {
+                  setTimeout(() => {
+                    c.kill('SIGKILL');
+                  }, 100);
+                  utils.killProcs(c.pid, 'KILL', (err, results) => {
+                    c.kill('SIGKILL');
+                    log.info({err, results});
+                  });
+                }
+              }, 2000);
+            });
+          })
         }, timeout);
+
       }
 
       process.stdin.resume()
@@ -552,7 +587,6 @@ export default () => {
             process.exit(0);
             return;
           }
-
 
           if (userInput === 'rs') {
             if (mergedroodlesConf.verbosity > 0) {
@@ -595,7 +629,12 @@ export default () => {
         const w = fs.watch(i, (event: string, filename: string) => {
           console.log('hello:', event, filename);
           // log.info('watched file changed => ', path);
-          killAndRestart(200);
+
+          const now = Date.now();
+          gp.then(() => {
+            const diff = Date.now() - now;
+            killAndRestart(Math.max(1, 200 - diff));
+          });
         });
       }
 

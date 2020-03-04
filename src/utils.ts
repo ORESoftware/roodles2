@@ -109,7 +109,7 @@ export const getChildPids = (pid: number, cb: EVCb<Array<string>>) => {
 
     k.once('exit', (code: any) => {
 
-      if (code > 0) {
+      if (Number.isInteger(code) && code > 0) {
         log.warning('The following command exited with non-zero code:', code, cmd);
       }
 

@@ -44,7 +44,7 @@ process.stdin.resume()
       cache.state = 'DEAD'
     }
     else {
-      log.warn('The following is unrecognized info:');
+      log.warn('The following is unrecognized info:', d);
     }
     log.info(d);
   });

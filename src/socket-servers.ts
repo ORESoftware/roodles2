@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import * as net from "net";
 import log from "./logging";
 import * as utils from './utils';
+import {EventEmitter} from 'events';
 
 type Conns = {
   stdoutConnections: Set<net.Socket>,
@@ -11,9 +12,14 @@ type Conns = {
   metaConnections: Set<net.Socket>
 }
 
-export const launchServers = (cache: any, {stdoutConnections, stderrConnections, metaConnections}: Conns) => {
+export const launchServers =
+  (cache: any, {stdoutConnections, stderrConnections, metaConnections}: Conns) : Promise<EventEmitter> => {
 
-  return new Promise((resolve, reject) => {
+  return new Promise(($resolve, reject) => {
+
+    const ee = new EventEmitter();
+
+    const resolve = $resolve.bind(null, ee);
 
     setTimeout(resolve, 3500);
 
@@ -46,6 +52,10 @@ export const launchServers = (cache: any, {stdoutConnections, stderrConnections,
             log.warn('process state is "LIVE" but cache.k was not defined.')
           }
         }
+
+        s.on('connect', () => {
+          ee.emit('connected', s);
+        });
 
         s.once('connect', () => {
           count();
@@ -97,6 +107,10 @@ export const launchServers = (cache: any, {stdoutConnections, stderrConnections,
           stderrConnections.delete(s);
         });
 
+        s.on('connect', () => {
+          ee.emit('connected', s);
+        });
+
         s.once('connect', () => {
           count();
         });
@@ -134,6 +148,10 @@ export const launchServers = (cache: any, {stdoutConnections, stderrConnections,
 
         s.once('disconnect', () => {
           metaConnections.delete(s);
+        });
+
+        s.on('connect', () => {
+          ee.emit('connected', s);
         });
 
         s.once('connect', () => {
