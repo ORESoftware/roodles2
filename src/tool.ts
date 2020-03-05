@@ -607,7 +607,7 @@ export default () => {
             return;
           }
 
-          log.warn('Command not recognized:', userInput)
+          log.warn(`Command not recognized: '${userInput}'`);
         });
 
       // const f = path.resolve(__dirname + '/test/dist/first.js');

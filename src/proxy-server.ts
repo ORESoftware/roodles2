@@ -177,7 +177,7 @@ s.on('error', e => {
 });
 
 
-s.listen(proxyPortValue, 'localhost', () => {
+s.listen(proxyPortValue, '0.0.0.0', () => {
   log.info(
     'roodles proxy-server is listening on port:', proxyPortValue,
     'and forwarding requests to port:', targetPortValue
