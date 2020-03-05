@@ -34,7 +34,7 @@ process.stdin.resume().on('data', d => {
 process.stdin.resume()
   .pipe(new JSONParser())
   .on('error', e => {
-    log.warn('json parse error:', e)
+    log.warn('json parser error:', e)
   })
   .on('data', d => {
     if(d && d.value && d.value.state === 'LIVE'){
