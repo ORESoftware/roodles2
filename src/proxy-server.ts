@@ -28,7 +28,7 @@ const cache = {
 };
 
 process.stdin.resume().on('data', d => {
-  console.log('raw data from producer:', String(d));
+  console.log('raw data from producer:', String(d || '').trim());
 });
 
 process.stdin.resume()
@@ -39,7 +39,7 @@ process.stdin.resume()
   .on('data', d => {
     if(d && d.value && d.value.state === 'LIVE'){
       cache.state = 'LIVE';
-      waiting.forEach(v => {
+      waiting.dequeueEach(v => {
         // console.log('value:', v); //
         v.value();
       });
@@ -53,7 +53,8 @@ process.stdin.resume()
     log.info(d);
   });
 
-const proxy = httpProxy.createProxyServer({target:'http://localhost:2020'}); // See (†)
+
+
 
 const proxyPortRaw = utils.mustGetEnvVar('roodles_proxy_port');
 
@@ -77,6 +78,8 @@ catch(err){
   log.error(`Could not parse integer from env var, raw value was: '${targetPortRaw}' ..`);
   process.exit(1);
 }
+
+const proxy = httpProxy.createProxyServer({target:`http://localhost:${targetPortRaw}`}); // See (†)
 
 const s = http.createServer((req, res) => {
 

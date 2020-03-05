@@ -599,6 +599,7 @@ export default () => {
           }
 
           if (userInput === 'restart') {
+            process.stdout.write('\x1Bc');
             if (mergedroodlesConf.verbosity > 0) {
               log.info(' => "restart" captured...');
             }
@@ -611,6 +612,7 @@ export default () => {
           }
 
           if (userInput === 'rs') {
+            process.stdout.write('\x1Bc');
             if (mergedroodlesConf.verbosity > 0) {
               log.info(' => "rs" captured...');
             }
@@ -622,10 +624,6 @@ export default () => {
           }
 
           if (userInput === 'clear') {
-            if (mergedroodlesConf.verbosity > 0) {
-              log.info(' => "clear" captured...');
-            }
-            log.info(' => "clear" captured...');
             process.stdout.write('\x1Bc');
             return;
           }
