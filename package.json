@@ -33,7 +33,7 @@
     "@oresoftware/cli": "0.0.104",
     "@oresoftware/deep.mixin": "0.0.108",
     "@oresoftware/json-stream-parser": "0.0.124",
-    "@oresoftware/linked-queue": "^0.1.106",
+    "@oresoftware/linked-queue": "0.1.107",
     "async": "^3.2.0",
     "chalk": "3.0.0",
     "chokidar": "3.3.1",
