@@ -27,6 +27,10 @@ const cache = {
   state: 'DEAD' as 'DEAD' | 'LIVE'
 };
 
+process.stdin.resume().on('data', d => {
+  console.log('raw data from producer:', String(d));
+});
+
 process.stdin.resume()
   .pipe(new JSONParser())
   .on('error', e => {
@@ -44,7 +48,7 @@ process.stdin.resume()
       cache.state = 'DEAD'
     }
     else {
-      log.warn('The following is unrecognized info:', d);
+      log.info('The following is unrecognized info:', d);
     }
     log.info(d);
   });

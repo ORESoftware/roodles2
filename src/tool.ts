@@ -288,13 +288,9 @@ export default () => {
 
     const onReady = () => {
 
-      log.warn('Watcher is ready!');
+      log.info('Watcher is ready!');
 
       let count = 0;
-
-      if (mergedroodlesConf.verbosity > 2) {
-        log.info(chalk.magenta('watched paths => '));
-      }
 
       // const watched = watcher.getWatched();
       //
@@ -333,7 +329,7 @@ export default () => {
           }
         }
         else {
-          log.warn('Roodles is re-starting your process...');
+          log.info('Roodles is re-starting your process...');
         }
 
         cache.strm = getStream(false) as any;
@@ -344,8 +340,12 @@ export default () => {
           `${mergedroodlesConf.exec} ${mergedroodlesConf.processArgs.join(' ')}`
         );
 
-        n.stdout.pipe(process.stdout);
-        n.stderr.pipe(process.stderr);
+        if(stderrConnections.size < 1 || stdoutConnections.size < 1){
+          if(false){
+            n.stdout.pipe(process.stdout);
+            n.stderr.pipe(process.stderr);
+          }
+        }
 
         if (mergedroodlesConf.verbosity > 1 && first) {
           log.info('Your process is running with pid => ', n.pid);
@@ -367,6 +367,23 @@ export default () => {
               c.writable && c.write('crashed\n');
             }
           }
+
+          n.stdout.unpipe(process.stdout);
+          n.stderr.unpipe(process.stderr);
+
+          console.log('size on exit:',metaConnections.size, stdoutConnections.size, stderrConnections.size)
+
+
+          for (const c of stdoutConnections) {
+            n.stdout.unpipe(c)
+          }
+
+          for (const c of stderrConnections) {
+            n.stderr.unpipe(c)
+          }
+
+          n.removeAllListeners();
+
           if (!(n as any).isRoodlesKilled) {
             log.warn(`Looks like your process crashed (with code ${code})`);
             log.warn(`...waiting for file changes before restarting.`);
@@ -376,24 +393,29 @@ export default () => {
         n.stdout.setEncoding('utf8');
         n.stderr.setEncoding('utf8');
 
+
+        console.log('on create cp:', metaConnections.size, stdoutConnections.size, stderrConnections.size)
+
         for (const c of metaConnections) {
           c.writable && c.write('clear\n');
         }
 
         for (const c of stdoutConnections) {
+
           if (!c.writable) {
             continue;
           }
-          const p = n.stdout.pipe(c, {end: false})
-            .once('end', () => {
-              p.unpipe();
-              p.removeAllListeners();
-            })
-            .once('error', e => {
-              log.warn('pipe error to stdout conn:', e);
-              p.unpipe();
-              p.removeAllListeners();
-            });
+
+         const p = n.stdout.pipe(c, {end: false})
+            // .once('end', () => {
+            //   p.unpipe();
+            //   p.removeAllListeners();
+            // })
+            // .once('error', e => {
+            //   log.warn('pipe error to stdout conn:', e);
+            //   p.unpipe();
+            //   p.removeAllListeners();
+            // });
         }
 
         for (const c of stderrConnections) {
@@ -401,15 +423,15 @@ export default () => {
             continue;
           }
           const p = n.stderr.pipe(c, {end: false})
-            .once('end', () => {
-              p.unpipe();
-              p.removeAllListeners();
-            })
-            .once('error', e => {
-              log.warn('pipe error to stderr conn:', e);
-              p.unpipe();
-              p.removeAllListeners();
-            });
+            // .once('end', () => {
+            //   p.unpipe();
+            //   p.removeAllListeners();
+            // })
+            // .once('error', e => {
+            //   log.warn('pipe error to stderr conn:', e);
+            //   p.unpipe();
+            //   p.removeAllListeners();
+            // });
         }
 
         // n.stdout.pipe(getStdout(), {end: true});

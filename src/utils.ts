@@ -117,7 +117,7 @@ export const getChildPids = (pid: number, cb: EVCb<Array<string>>) => {
     k.once('exit', (code: any) => {
 
       if (Number.isInteger(code) && code > 0) {
-        log.warning('The following command exited with non-zero code:', code, cmd);
+        log.info('The following command exited with non-zero code:', code, cmd);
       }
 
       const list = String(stdout).split(/\s+/)
