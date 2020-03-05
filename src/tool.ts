@@ -24,6 +24,7 @@ import JSONParser from "@oresoftware/json-stream-parser";
 import * as net from 'net';
 import {getDefaultConf, getOverride} from "./default-conf";
 import {launchServers} from "./socket-servers";
+import {getAbsPath} from "./utils";
 
 export default () => {
 
@@ -614,22 +615,46 @@ export default () => {
 
       const pathsToPatch = [];
       const s = new Set<string>(); // prevent cycles if folders are symlinked etc
-      for (let v of include) {
+
+      const files = [];
+      for (let r of include) {
+
+        const v = getAbsPath(r, projectRoot);
+
+        try {
+          if (fs.statSync(v).isFile()) {
+            files.push(v);
+            continue;
+          }
+        }
+        catch (err) {
+          log.error('could not call stat on path:', v);
+          log.error(err);
+          process.exit(1);
+        }
+
         pathsToPatch.push(...utils.findPathsToWatch(v, s));
       }
 
-      const flattenedPaths = Array.from(
-        new Set(
-          utils.flattenDeep(pathsToPatch)
-        )
+      const flattenedPathsSet = new Set(
+        utils.flattenDeep(pathsToPatch)
       );
+
+      for (const f of files) {
+        const dirname = path.dirname(f);
+        if (!flattenedPathsSet.has(dirname)) {
+          // if our watcher does not have the immediate dirname/parent of this file
+          // then we add it to the set
+          flattenedPathsSet.add(f);
+        }
+      }
 
       let watchCount = 0;
 
       let toLocal = <Timer><unknown>null;
 
-      for (const i of flattenedPaths) {
-        const w = fs.watch(i, (event: string, filename: string) => {
+      for (const i of Array.from(flattenedPathsSet)) {
+        fs.watch(i, (event: string, filename: string) => {
           console.log('hello:', event, filename);
           // log.info('watched file changed => ', path);
 
@@ -653,11 +678,11 @@ export default () => {
 
       const watcher = cp.spawn('bash');
 
-      const paths = flattenedPaths.map(v => `-m '${v}'`).join(' ');
+      const paths = Array.from(flattenedPathsSet).map(v => `-m '${v}'`).join(' ');
 
       //https://stackoverflow.com/questions/1515730/is-there-a-command-like-watch-or-inotifywait-on-the-mac
 
-      console.log({paths});
+      console.log({paths});  //
 
       watcher.stdin.end(`
                inotifywait ${paths} -e create \

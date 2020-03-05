@@ -16,7 +16,14 @@ export const findPathsToWatch = (dir: string, s: Set<string>) : Array<string> =>
 
   s.add(dir);
 
-  const stats = fs.statSync(dir);
+  try{
+    var stats = fs.statSync(dir);
+  }
+  catch(err){
+    log.error('could not call stat on path:', dir);
+    log.error(err);
+    process.exit(1);
+  }
 
   if(!stats.isDirectory()){
     return [];
