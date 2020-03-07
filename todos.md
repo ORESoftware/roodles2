@@ -8,7 +8,7 @@ while true; do
 done;
 ```
 
-2. clear screen for nodemone tty
+2. clear screen for nodemon tty
 
 3. allow user to define custom env vars on roodles.conf.js
 
