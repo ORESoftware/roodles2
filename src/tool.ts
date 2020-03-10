@@ -633,7 +633,7 @@ export default () => {
 
       // const f = path.resolve(__dirname + '/test/dist/first.js');
 
-      const pathsToPatch = [];
+      const pathsToWatch = [];
       const s = new Set<string>(); // prevent cycles if folders are symlinked etc
 
       const files = [];
@@ -653,11 +653,11 @@ export default () => {
           process.exit(1);
         }
 
-        pathsToPatch.push(...utils.findPathsToWatch(v, s));
+        pathsToWatch.push(...utils.findPathsToWatch(v, s));
       }
 
       const flattenedPathsSet = new Set(
-        utils.flattenDeep(pathsToPatch)
+        utils.flattenDeep(pathsToWatch)
       );
 
       for (const f of files) {
