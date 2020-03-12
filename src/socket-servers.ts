@@ -5,8 +5,6 @@ import * as net from "net";
 import log from "./logging";
 import * as utils from './utils';
 import {EventEmitter} from 'events';
-import WritableStream = NodeJS.WritableStream;
-import ReadableStream = NodeJS.ReadableStream;
 
 type Conns = {
   stdoutConnections: Set<net.Socket>,

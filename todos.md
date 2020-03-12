@@ -14,4 +14,6 @@ done;
 
 4. migrate from roodles.conf.js to .roodles.rc, with the dot in front.
 
+5. https://stackoverflow.com/questions/60498642/proxy-server-is-not-handling-options-request-correctly
+
 

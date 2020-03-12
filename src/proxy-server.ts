@@ -83,10 +83,20 @@ const proxy = httpProxy.createProxyServer({target:`http://localhost:${targetPort
 
 const s = http.createServer((req, res) => {
 
+  res.setHeader("Roodles-Cookie", JSON.stringify({time: new Date().toISOString()}));
+
+  res.once('finish', () => {
+    log.info('req url:', req.method, req.url, 'res headers:', res.getHeaders());
+  });
+
+  res.once('end', () => {
+    log.info('req url:', req.method, req.url, 'res headers:', res.getHeaders());
+  });
+
   console.log('got a request, state:', cache);
   // console.log('req headers:', req.headers);
 
-  console.log('req method:', req.method);
+  console.log('req method:', req.method, req.url);
   // Access-Control-Request-Headers
 
   // res.Header().Set("Access-Control-Allow-Origin", origin)
@@ -101,6 +111,7 @@ const s = http.createServer((req, res) => {
   // res.Header().Set("Access-Control-Max-Age", "3600")
 
   // if(String(req.method|| '').toUpperCase() === 'OPTIONS'){
+  //   log.info('this is an options request!');
   //   res.setHeader('Access-Control-Expose-Headers', '*');
   //   res.setHeader('Access-Control-Allow-Credentials', 'true');
   //   res.setHeader('Access-Control-Max-Age', '3600');
@@ -108,10 +119,12 @@ const s = http.createServer((req, res) => {
   //   res.setHeader('Access-Control-Allow-Headers', '*');
   //   res.setHeader('Access-Control-Allow-Methods', '*');
   //   res.setHeader('Connection', 'keep-alive');
-  //   res.setHeader('Access-Control-Request-Method', 'POST');
+  //   res.setHeader('Access-Control-Request-Method', '*');
   //   res.setHeader('Allow', 'GET, POST, PUT, DELETE, OPTIONS, HEAD');
   //   res.setHeader('Allowed', 'GET, POST, PUT, DELETE, OPTIONS, HEAD');
-  //   return res.writeHead(200);
+  //   res.setHeader('Content-Length', 0);
+  //   res.writeHead(200);
+  //   res.end();
   // }
 
   // if(String(req.method|| '').toUpperCase() !== 'OPTIONS') {
@@ -169,11 +182,13 @@ const s = http.createServer((req, res) => {
   };
 
   if(cache.state === 'LIVE'){
+    // return m();
     return z();
   }
 
   res.setHeader('roodles_waiting', JSON.stringify({value: true}));
   // throw 'waiting'
+  // waiting.push(m);
   waiting.push(z);
 
 });
