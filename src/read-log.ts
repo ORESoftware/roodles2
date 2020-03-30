@@ -29,7 +29,7 @@ process.stdin.resume().on('data', d => {
     process.exit(0)
   });
 
-  metaConn.on('error', e => {
+  metaConn.once('error', e => {
    log.error('meta conn error:', e);
     process.exit(0);
   });
