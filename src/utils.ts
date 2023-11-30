@@ -20,8 +20,8 @@ export const findPathsToWatch = (dir: string, s: Set<string>) : Array<string> =>
     var stats = fs.statSync(dir);
   }
   catch(err){
-    log.error('could not call stat on path:', dir);
-    log.error(err);
+    log.error("876c297c-4d8f-444c-b3a7-554e71f70b97", 'could not call stat on path:', dir);
+    log.error("6a79ac4c-73cf-4a92-8a9c-e2e047ff7f02", err);
     process.exit(1);
   }
 
@@ -42,7 +42,7 @@ export const mustGetEnvVar = (key: string) : string => {
   const val = process.env[key] || ''; // '/tmp/cp.api.stderr.sock';
 
   if(!val){
-    log.error(`The following env var needs to be defined: '${key}' ...`);
+    log.error("84ac75b0-ba20-4d95-b8b0-05b993e6a302", `The following env var needs to be defined: '${key}' ...`);
     process.exit(1);
   }
 

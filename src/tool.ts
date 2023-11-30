@@ -9,7 +9,6 @@ import assert = require('assert');
 import * as stdio from 'json-stdio';
 
 //npm
-import chokidar = require('chokidar');
 import chalk = require('chalk');
 import * as residence from 'residence'
 
@@ -32,7 +31,7 @@ export default () => {
     strm: typeof fs.WriteStream,
     success: false,
     to: <Timer><unknown>null,
-    k: null as any,
+    k: <unknown>null as cp.ChildProcess,
     state: 'DEAD' as 'LIVE' | 'DEAD'
   };
 
@@ -54,7 +53,7 @@ export default () => {
       var opts = parser.parse(process.argv);
     }
     catch (e) {
-      log.error('error: %s', e.message);
+      log.error("4c932a52-953f-4548-b36f-4e171ec49803", 'error:', e);
       process.exit(1);
     }
 
@@ -107,7 +106,7 @@ export default () => {
     const override = getOverride();
 
     if (!roodlesConf.exec) {
-      log.error('Roodles needs an "exec" file to run!', 'You can specify one with "exec" in your ' +
+      log.error("63c02af3-a9ad-4571-9a51-fdc30230fe5f", 'Roodles needs an "exec" file to run!', 'You can specify one with "exec" in your ' +
         'roodles.conf.js file or you can pass one at the command line with the "--exec" option');
       process.exit(1);
     }
@@ -139,7 +138,7 @@ export default () => {
         override.processArgs = String(opts.process_args).trim().split(/\s+/)
       }
       else {
-        log.error('The property "processArgs" needs to be either an array or string.');
+        log.error("921b42af-8f54-4e24-b700-0a0a54d2370f", 'The property "processArgs" needs to be either an array or string.');
         process.exit(1);
       }
     }
@@ -172,13 +171,13 @@ export default () => {
       )
     );
 
-    const getStdout = (): any => {
-      return cache.strm || process.stdout;
-    };
-
-    const getStderr = (): any => {
-      return cache.strm || process.stderr;
-    };
+    // const getStdout = (): any => {
+    //   return cache.strm || process.stdout;
+    // };
+    //
+    // const getStderr = (): any => {
+    //   return cache.strm || process.stderr;
+    // };
 
     // var strm, success = false;
 
@@ -192,7 +191,7 @@ export default () => {
       return fs.createWriteStream(mergedroodlesConf.processLogPath, {autoClose: true})
         .once('error', err => {
           log.newline();
-          log.error(chalk.red.bold(err.message));
+          log.error("873fefc5-76cb-43c4-84f4-4b4777408ecb", chalk.red.bold(err.message));
           // log.warn(' => You may have accidentally used a path for "exec" or "processLogPath" that begins with "/" => \n' +
           //   ' if your relative path begins with "/" then you should remove that.');
           throw err;
@@ -219,8 +218,9 @@ export default () => {
         }
       }
       catch (err) {
-        log.error(err.message);
+        log.error("407c9656-9ccc-4d65-9b6f-d20eb4a64000", err);
         log.error(
+          "3ecadbd2-a67a-4e69-b625-6b8c44a4e7eb",
           ' => You may have accidentally used an absolute path for "exec" or "processLogPath",',
           'if your relative path begins with "/" then you should remove that.'
         );
@@ -246,8 +246,8 @@ export default () => {
     }
 
     const exclude = utils.flattenDeep([mergedroodlesConf.exclude]);
-    const joined = exclude.join('|');
-    const rgx = new RegExp('(' + joined + ')');
+    // const joined = exclude.join('|');
+    // const rgx = new RegExp('(' + joined + ')');
 
     if (mergedroodlesConf.verbosity > 1) {
       log.info(chalk.cyan('Roodles will ignore paths that match any of the following => '));
@@ -263,7 +263,7 @@ export default () => {
     );
 
     if (include.length < 1) {
-      log.error('No folders/files to watch.');
+      log.error("b6cc3289-54ea-45f3-88ce-90297219461d", 'No folders/files to watch.');
       log.error('Please specify which folders to watch in the "include" array in your roodles.conf.js file.');
       process.exit(1);
     }
@@ -273,16 +273,11 @@ export default () => {
         fs.statSync(utils.getAbsPath(v, projectRoot))
       }
       catch (e) {
-        log.error('Could not stat the following file path we were supposed to watch:', v);
+        log.error("93b92561-540d-4036-80f4-6f6a89444758",  'Could not stat the following file path we were supposed to watch:', v);
         process.exit(1);
       }
     }
 
-    // const watcher = chokidar.watch(include, {
-    //   ignored: rgx,
-    //   persistent: true,
-    //   ignoreInitial: true,
-    // });
 
     let first = true;
 
@@ -292,19 +287,6 @@ export default () => {
 
       let count = 0;
 
-      // const watched = watcher.getWatched();
-      //
-      // console.log('watched:', watched);
-      //
-      // Object.keys(watched).forEach(function (k) {
-      //   const values = watched[k];
-      //   values.forEach(function (p) {
-      //     count++;
-      //     if (mergedroodlesConf.verbosity > 2) {
-      //       log.info(chalk.grey(path.resolve(k + '/' + p)));
-      //     }
-      //   })
-      // });
 
       if (mergedroodlesConf.verbosity > 1) {
         log.info('Total number of watched paths => ', count, '\n');
@@ -316,8 +298,12 @@ export default () => {
 
         if (cache.k) {
           cache.k.removeAllListeners();
-          cache.k.stdout.removeAllListeners();
-          cache.k.stderr.removeAllListeners();
+          if(cache.k.stdout){
+            cache.k.stdout.removeAllListeners();
+          }
+          if(cache.k.stderr){
+            cache.k.stderr.removeAllListeners();
+          }
         }
 
         if (first) {
@@ -371,8 +357,7 @@ export default () => {
           n.stdout.unpipe(process.stdout);
           n.stderr.unpipe(process.stderr);
 
-          console.log('size on exit:',metaConnections.size, stdoutConnections.size, stderrConnections.size)
-
+          console.log('size on exit:', metaConnections.size, stdoutConnections.size, stderrConnections.size)
 
           for (const c of stdoutConnections) {
             n.stdout.unpipe(c)
@@ -406,7 +391,8 @@ export default () => {
             continue;
           }
 
-         const p = n.stdout.pipe(c, {end: false})
+          n.stdout.pipe(c, {end: false})
+
             // .once('end', () => {
             //   p.unpipe();
             //   p.removeAllListeners();
@@ -422,7 +408,8 @@ export default () => {
           if (!c.writable) {
             continue;
           }
-          const p = n.stderr.pipe(c, {end: false})
+
+          n.stderr.pipe(c, {end: false})
             // .once('end', () => {
             //   p.unpipe();
             //   p.removeAllListeners();
@@ -482,7 +469,7 @@ export default () => {
           gp = gp.then(() => {
 
             let exited = false;
-            let timedout = false;
+            // let timedout = false;
             let callable = true;
             ee.removeAllListeners();
 
@@ -501,7 +488,7 @@ export default () => {
 
             const to = setTimeout(() => {
               log.warn('wait for exit timed out...');
-              timedout = true;
+              // timedout = true;
               if (!exited) {
                 onExitOrTimeout();
               }
@@ -520,12 +507,15 @@ export default () => {
               ee.removeListener('connected', listener);
               callable = false;
               clearTimeout(to);
-              c.stdout.removeAllListeners();
-              c.stderr.removeAllListeners();
+              if(c.stdout){
+                c.stdout.removeAllListeners();
+              }
+              if(c.stderr){
+                c.stderr.removeAllListeners();
+              }
               c.removeAllListeners();
               c.unref();
               cache.k = launch();
-
             }
 
             if (mergedroodlesConf.verbosity > 2) {
@@ -648,8 +638,8 @@ export default () => {
           }
         }
         catch (err) {
-          log.error('could not call stat on path:', v);
-          log.error(err);
+          log.error("4e8c4593-337d-42e8-ac15-e631632e637a", 'could not call stat on path:', v);
+          log.error("f55c1a0e-8086-4a85-b051-8f98a5b212f1", err);
           process.exit(1);
         }
 

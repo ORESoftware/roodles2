@@ -1,10 +1,6 @@
 #!/usr/bin/env node
 
 //core
-import * as cp from 'child_process'
-import fs = require('fs');
-import path = require('path');
-import util = require('util');
 import assert = require('assert');
 import * as http from 'http';
 import {JSONParser} from "@oresoftware/json-stream-parser";
@@ -16,11 +12,11 @@ import * as utils from './utils';
 const waiting = new LinkedQueue<()=>void>();
 
 process.on('uncaughtException', e => {
-  log.error('process uncaught exception:', e);
+  log.error("e580ec9b-9fb2-466c-8caf-8a31ccbf283f", 'process uncaught exception:', e);
 });
 
 process.on('unhandledRejection', e => {
-  log.error('process unhandled rejection:', e);
+  log.error("551cf596-a469-4d29-9c17-44bfd427aa8b", 'process unhandled rejection:', e);
 });
 
 const cache = {
@@ -34,7 +30,7 @@ process.stdin.resume().on('data', d => {
 process.stdin.resume()
   .pipe(new JSONParser())
   .on('error', e => {
-    log.warn('json parser error:', e)
+    log.warn("3f3550dd-5b4d-4051-916b-704b158d6755", 'json parser error:', e)
   })
   .on('data', d => {
     if(d && d.value && d.value.state === 'LIVE'){
@@ -63,7 +59,7 @@ try{
   assert.strict(Number.isInteger(proxyPortValue), 'proxy port needs to be an integer.');
 }
 catch(err){
-  log.error(`Could not parse integer from env var, value was: '${proxyPortRaw}' ..`);
+  log.error("36a367e2-ceae-4ec8-a328-3a36ce51a86d", `Could not parse integer from env var, value was: '${proxyPortRaw}' ..`);
   process.exit(1);
 }
 
@@ -75,7 +71,7 @@ try{
   assert.strict(Number.isInteger(targetPortValue), 'target port needs to be an integer.');
 }
 catch(err){
-  log.error(`Could not parse integer from env var, raw value was: '${targetPortRaw}' ..`);
+  log.error("3f4840ec-3f13-4d40-bb1d-8896c8767dfa", `Could not parse integer from env var, raw value was: '${targetPortRaw}' ..`);
   process.exit(1);
 }
 
@@ -153,33 +149,33 @@ const s = http.createServer((req, res) => {
     proxy.web(req,res);
   };
 
-  const m = () => {
-
-    if(res.finished){
-      log.warn('response was already finished? original request was to:', req.url);
-      return;
-    }
-
-    const r = http.request({
-      method: req.method,
-      headers: req.headers,
-      path: req.url,
-      port: targetPortValue,
-      hostname: 'localhost',
-      protocol: 'http:',
-    }, r => {
-      // for(const [k,v] of Object.entries(r.headers)){
-      //   res.setHeader(k,v as any);
-      // }
-      r.pipe(res)
-    });
-
-    r.on('error', e => {
-      log.warn('request error:', e);
-    });
-
-    req.pipe(r);
-  };
+  // const m = () => {
+  //
+  //   if(res.finished){
+  //     log.warn('response was already finished? original request was to:', req.url);
+  //     return;
+  //   }
+  //
+  //   const r = http.request({
+  //     method: req.method,
+  //     headers: req.headers,
+  //     path: req.url,
+  //     port: targetPortValue,
+  //     hostname: 'localhost',
+  //     protocol: 'http:',
+  //   }, r => {
+  //     // for(const [k,v] of Object.entries(r.headers)){
+  //     //   res.setHeader(k,v as any);
+  //     // }
+  //     r.pipe(res)
+  //   });
+  //
+  //   r.on('error', e => {
+  //     log.warn('request error:', e);
+  //   });
+  //
+  //   req.pipe(r);
+  // };
 
   if(cache.state === 'LIVE'){
     // return m();
@@ -195,9 +191,8 @@ const s = http.createServer((req, res) => {
 
 
 s.on('error', e => {
-  log.error(e);
+  log.error("3c565590-c735-48e0-9108-db6a1e50de8e", e);
 });
-
 
 s.listen(proxyPortValue, '0.0.0.0', () => {
   log.info(
