@@ -5,9 +5,6 @@ scripts
 test
 .idea
 .vscode
-coverage
-.nyc_output
-build/Release
 src
 docs
 .circleci
@@ -20,7 +17,6 @@ docs
 .npmignore
 .dockerignore
 .travis.yml
-
 
 ### matching
 *.log
