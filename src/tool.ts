@@ -443,6 +443,7 @@ export default () => {
             });
             const joined = stck.join('\n');
             console.error('\n');
+            console.error("842a264e-2815-4d5a-8e30-374456ebc1d0:")
             console.error(chalk.bgRed.white('captured stderr from your process => '));
             console.error(chalk.red.bold(joined));
           }
@@ -585,6 +586,7 @@ export default () => {
           const userInput = String(d || '').trim().toLowerCase();
 
           if (userInput === '') {
+            log.warn('(empty user input detected).')
             return;
           }
 
